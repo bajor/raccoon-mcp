@@ -11,8 +11,9 @@ const safeOptions = ['--no-pager', '--no-replace-objects', '--literal-pathspecs'
   '-c', 'core.hooksPath=/dev/null', '-c', 'core.fsmonitor=false',
   '-c', 'core.attributesFile=/dev/null', '-c', 'log.showSignature=false',
   '-c', 'diff.external=', '-c', 'protocol.ext.allow=never'];
-const environment = { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null',
-  GIT_ATTR_NOSYSTEM: '1', GIT_TERMINAL_PROMPT: '0' };
+const environment = { ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_'))),
+  GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_ATTR_NOSYSTEM: '1',
+  GIT_TERMINAL_PROMPT: '0', GIT_NO_LAZY_FETCH: '1', GIT_GRAFT_FILE: '/dev/null', GIT_ALLOW_PROTOCOL: '' };
 
 async function command(root: string, options: string[], args: string[]): Promise<Buffer> {
   const result = await execute('git', [...safeOptions, ...options, ...args], {
@@ -34,8 +35,12 @@ export class Git {
     const top = decoder.decode(await command(root, [], ['rev-parse', '--show-toplevel'])).trim();
     if (await realpath(top) !== root) throw new Error('Select the repository root, not a nested directory');
     let keys = '';
-    try { keys = decoder.decode(await command(root, [], ['config', '--name-only', '--get-regexp', '^filter\\.'])); }
+    try { keys = decoder.decode(await command(root, [], ['config', '--name-only', '--get-regexp',
+      '^filter\\.|^remote\\..*\\.(promisor|partialclonefilter)$|^extensions\\.partialclone$'])); }
     catch (error) { if (!(error instanceof Error && 'code' in error && error.code === 1)) throw error; }
+    if (keys.split('\n').some((key) => !key.startsWith('filter.') && key !== '')) {
+      throw new Error('Partial Git clones require a complete local clone before inspection');
+    }
     // Local .gitattributes can name any configured filter. Disable every driver,
     // including process filters, before status or future index operations.
     const drivers = new Set(keys.trim().split('\n').filter(Boolean).map((key) => key.slice(0, key.lastIndexOf('.'))));
@@ -103,10 +108,13 @@ export class Git {
 
   async history(revision: string, skip = 0, count = 50, path?: string): Promise<GitCommit[]> {
     sha.parse(revision);
-    if (!Number.isSafeInteger(skip) || skip < 0 || !Number.isSafeInteger(count) || count < 1 || count > 200) throw new Error('Invalid history page');
+    if (!Number.isSafeInteger(skip) || skip < 0 || !Number.isSafeInteger(skip + count) || !Number.isSafeInteger(count) || count < 1 || count > 200) throw new Error('Invalid history page');
     if (path !== undefined) relativePath.parse(path);
-    const hashes = (await this.text(['log', '--format=%H', `--skip=${skip}`, `--max-count=${count}`,
-      ...(path ? ['--follow'] : []), revision, '--', ...(path ? [path] : [])])).trim().split('\n').filter(Boolean);
+    // --skip prevents --follow from seeing skipped renames. Traverse the prefix
+    // before selecting the page, or older names disappear from later pages.
+    const paging = path ? ['--follow', `--max-count=${skip + count}`] : [`--skip=${skip}`, `--max-count=${count}`];
+    const hashes = (await this.text(['log', '--format=%H', ...paging, revision, '--', ...(path ? [path] : [])]))
+      .trim().split('\n').filter(Boolean).slice(path ? skip : 0);
     return Promise.all(hashes.map((hash) => this.commit(hash)));
   }
 }
