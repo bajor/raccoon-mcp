@@ -36,3 +36,13 @@ with explicit reasons. Other changed paths remain source work.
 
 Verification limits are explicit: command output is bounded to 16 MiB and each
 command to 30 seconds. Exceeding either fails, never silently truncates evidence.
+
+## Implementation amendment: review regressions
+
+Disable lazy fetching and grafts, including inherited Git environment overrides.
+Reject partial-clone configurations before object access and deny all transport
+protocols in the read-only environment, including on older Git versions without
+`GIT_NO_LAZY_FETCH`. Inspection cannot invoke a promisor remote's command.
+PR inventory is `baseSha..headSha`, not the range from one selected
+merge base, so criss-cross histories do not introduce shared base commits. Path
+pagination traverses skipped renames before selecting the requested page.
