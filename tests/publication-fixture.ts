@@ -10,7 +10,7 @@ import { packageFixture } from './package-fixture.js';
 export class GitHubDouble {
   mutations: { query: string; variables: { input: { expectedHeadOid: string; fileChanges: FileChanges } } }[] = [];
   readonly github: GitHub;
-  constructor(readonly source: Omit<Source, 'mergeBaseSha'>) {
+  constructor(readonly source: Omit<Source, 'mergeBaseSha'>, beforeCommit: () => Promise<void> = async () => {}) {
     this.github = new GitHub(async (endpoint, input) => {
       if (endpoint === `repos/${source.repository}/pulls/${source.pr}`) return {
         number: source.pr, state: 'open', title: source.title, base: { sha: source.baseSha, repo: { full_name: source.repository } },
@@ -18,6 +18,7 @@ export class GitHubDouble {
       };
       if (endpoint !== 'graphql') throw new Error(`Unexpected request ${endpoint}`);
       this.mutations.push(input as (typeof this.mutations)[number]);
+      await beforeCommit();
       return { data: { createCommitOnBranch: { commit: { oid: 'e'.repeat(40) } } } };
     });
   }

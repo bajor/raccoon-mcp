@@ -1,4 +1,4 @@
-import { ARTIFACT_ROOT, CONTRACT_VERSION, artifactSchema, catalogSchema, relativePath, type Artifact, type Source } from './contract.js';
+import { ARTIFACT_ROOT, CONTRACT_VERSION, artifactSchema, catalogSchema, type Artifact, type Source } from './contract.js';
 import { Git } from './git.js';
 import { GitHub, type FileChanges } from './github.js';
 import { checksum, MAX_PACKAGE_BYTES, type Package } from './package.js';
@@ -11,12 +11,7 @@ const prefix = (pr: number): string => `${ARTIFACT_ROOT}/pr-${pr}/`;
 const parents = (path: string): string[] => path.split('/').slice(0, -1).map((_, index, parts) => parts.slice(0, index + 1).join('/'));
 
 async function state(git: Git, source: Source) {
-  const records = (await git.text(['ls-tree', '-r', '-z', '--full-tree', source.headSha, '--', ARTIFACT_ROOT])).split('\0').filter(Boolean);
-  const entries = new Map(records.map((record) => {
-    const tab = record.indexOf('\t');
-    if (tab < 0) throw new Error('Invalid artifact tree entry');
-    return [relativePath.parse(record.slice(tab + 1)), record.slice(0, tab).split(' ')[0]!] as const;
-  }));
+  const entries = new Map((await git.entries(source.headSha, ARTIFACT_ROOT)).map((entry) => [entry.path, entry.mode]));
   const catalog = entries.has(catalogPath)
     ? catalogSchema.parse(JSON.parse((await git.file(source.headSha, catalogPath)).text))
     : { version: CONTRACT_VERSION, repository: source.repository, artifacts: [] };
