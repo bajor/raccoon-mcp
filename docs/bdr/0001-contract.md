@@ -1,7 +1,7 @@
 ---
 type: BDR
 description: Reject invalid relationships instead of silently repairing or dropping evidence.
-status: Accepted
+status: Implemented
 ---
 
 # Validate a complete artifact

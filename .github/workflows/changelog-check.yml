@@ -1,0 +1,9 @@
+name: Changelog Check
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  changelog:
+    uses: bajor/github-workflows/.github/workflows/changelog-check.yml@main

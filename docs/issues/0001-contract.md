@@ -1,7 +1,7 @@
 ---
 type: Issue
 description: Establish the portable contract before Git extraction and reader implementation.
-status: in-progress
+status: closed
 ---
 
 # Implement the portable contract
