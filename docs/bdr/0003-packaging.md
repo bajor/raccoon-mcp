@@ -43,3 +43,9 @@ The reader's existing 200 MiB import limit also bounds a built package. Each Git
 command retains the limits in [frozen Git data](/bdr/0002-git-snapshot.md). Graphs
 remain bounded to 24 nodes by the contract and 96 edges by the renderer; split
 denser explanations into multiple diagrams. These are explicit failures, not truncation.
+
+## Review amendment
+
+Wrap edge labels in a reserved gutter outside node rectangles, including self-loops.
+The SVG viewport includes that gutter, so accepted 80-character edge labels remain
+visible instead of being hidden by nodes or clipped at the diagram boundary.

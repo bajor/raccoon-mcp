@@ -14,6 +14,12 @@ test('complete historical assets come from Git rather than dirty source', async 
   const files = result.manifest.files;
   assert.deepEqual(files.map((file) => ({ content: result.assets.get(file.file)!.toString(), bytes: file.bytes, lines: file.lines })),
     [{ content: currentText, bytes: Buffer.byteLength(currentText), lines: 3 }, { content: 'one\ntwo\n', bytes: 8, lines: 2 }]);
+});
+
+test('selected older stages precede PR stages in the packaged timeline', async (context) => {
+  const { git, source, draft } = await packageFixture();
+  context.after(() => rm(git.root, { recursive: true, force: true }));
+  const result = await buildArtifact(git, source, draft, Buffer.from('private profile'));
   assert.deepEqual(result.manifest.commits.map((commit) => [commit.sha, commit.phase]),
     [[source.baseSha, 'before-pr'], [source.headSha, 'pr']]);
 });
