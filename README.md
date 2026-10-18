@@ -19,6 +19,29 @@ npm ci
 make test
 ```
 
+## Local MCP runtime
+
+On the Linux VPS, run `npm run build`, then configure the host to launch
+`node /absolute/path/to/raccoon-mcp/dist/src/main.js` over stdio. Only protocol
+messages use stdout. No network listener or AI API key is needed.
+
+| Environment variable | Value or default |
+|---|---|
+| `RACCOON_REPOSITORIES` | JSON object mapping `owner/repo` to absolute clone roots; default `{}` authorizes nothing |
+| `RACCOON_PROFILE_PATH` | Private explanation preferences; default `~/.config/raccoon/READER.md` |
+| `RACCOON_STATE_DIRECTORY` | Exclusive PR locks; default `~/.local/state/raccoon` |
+
+Create the profile with mode `600`, outside source clones. Lock state also stays
+outside clones and is private to the same Linux user. Existing Raccoon
+`config.json` files are neither read nor modified. GitHub operations use that user's
+existing `gh` login. Clones must already contain complete PR history; the server
+does not fetch through untrusted source-repository configuration.
+
+The tool catalog includes inspection, explicit begin/regeneration, paged Git
+evidence, complete publication and cancellation. A crash leaves an exclusive lock;
+stop its owning process before removing only the exact reported lock file.
+See [session behavior](docs/bdr/0005-generation-session.md) for failure semantics.
+
 ## Agent commit discipline
 
 Add instructions to your coding agent's `AGENTS.md` (and `CLAUDE.md` for Claude
@@ -30,4 +53,4 @@ Raccoon uses it to explain how the mechanism evolved, including reversals.
 ## Docs index
 
 [Documentation](docs/index.md) contains the ratified scope and contract.
-Installation and generation commands will be documented with their implementation.
+The host-agent generation skill and host-specific installation are the next slice.

@@ -10,3 +10,5 @@
 - Package agent explanations with exact Git files, validated historical ancestry and static graph diagrams.
 - Discover open GitHub PRs and publish complete artifact-only generations atomically,
   checking the expected branch head and previous generation without local source changes.
+- Serve the private generation lifecycle over local MCP with explicit repository
+  access, exclusive PR locks and complete-draft publication.
