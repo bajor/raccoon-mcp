@@ -18,7 +18,7 @@ export async function freeze(git: Git, input: Omit<Source, 'mergeBaseSha'>): Pro
   await git.verifyCommit(input.baseSha); await git.verifyCommit(input.headSha);
   const mergeBaseSha = (await git.text(['merge-base', input.baseSha, input.headSha])).trim();
   const source = sourceSchema.parse({ ...input, mergeBaseSha });
-  const hashes = (await git.text(['rev-list', '--reverse', '--topo-order', `${mergeBaseSha}..${source.headSha}`])).trim().split('\n').filter(Boolean);
+  const hashes = (await git.text(['rev-list', '--reverse', '--topo-order', `${source.baseSha}..${source.headSha}`])).trim().split('\n').filter(Boolean);
   const snapshot: Snapshot = { source, commits: [], changes: [], excludedCommits: [] };
   for (const hash of hashes) {
     const changed = await git.changes(hash);
