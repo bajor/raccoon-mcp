@@ -7,3 +7,4 @@
 - Enforce complete change ownership, ordered stages and consistent deduplicated assets.
 - Read exact historical Git files and a complete PR inventory without running source-repository hooks or filters.
 - Reject partial clones, ignore grafts, and preserve complete PR and renamed-path history.
+- Package agent explanations with exact Git files, validated historical ancestry and static graph diagrams.
