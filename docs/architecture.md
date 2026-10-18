@@ -56,3 +56,12 @@ operation through `gh`. `src/publication.ts` owns complete-asset checks, prior
 generation identity, catalog updates and scoped deletion. It reads the pinned Git
 tree and never changes the working tree, index or local branch. Its interaction
 sequence and failure semantics live in [publication behavior](/bdr/0004-publication.md).
+
+`src/lock.ts` owns exclusive local generation locks. `src/runtime.ts` binds an
+operator-configured source root, frozen inventory, private profile and lock to one
+session. `src/server.ts` registers validated MCP tools; `src/main.ts` starts the
+official SDK's stdio serving entry for both protocol eras. The lifecycle and
+shutdown sequence live in [generation sessions](/bdr/0005-generation-session.md).
+The maintained Apache-2.0/MIT SDK packages own framing and negotiation rather than
+a handwritten protocol. The server package depends only on core and existing Zod;
+the official client is a development-only wire-test dependency.
