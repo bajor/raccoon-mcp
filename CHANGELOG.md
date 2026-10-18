@@ -8,3 +8,5 @@
 - Read exact historical Git files and a complete PR inventory without running source-repository hooks or filters.
 - Reject partial clones, ignore grafts, and preserve complete PR and renamed-path history.
 - Package agent explanations with exact Git files, validated historical ancestry and static graph diagrams.
+- Discover open GitHub PRs and publish complete artifact-only generations atomically,
+  checking the expected branch head and previous generation without local source changes.
