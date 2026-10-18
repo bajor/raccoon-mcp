@@ -39,34 +39,55 @@ function lines(label: string, limit = 30): string[] {
   return result;
 }
 
-export function renderDiagram(diagram: Diagram): Buffer {
+export function layoutDiagram(diagram: Diagram) {
   if (diagram.edges.length > MAX_EDGES) throw new Error(`Diagram exceeds ${MAX_EDGES} edges; split it into smaller diagrams`);
   const levels = ranks(diagram);
+  const edgeCounts = new Map<number, number>();
+  const lanes = diagram.edges.map((edge) => {
+    const rank = levels.get(edge.from)!;
+    const lane = edgeCounts.get(rank) ?? 0;
+    edgeCounts.set(rank, lane + 1);
+    return lane;
+  });
+  const columns: number[] = [];
+  let width = MARGIN;
+  for (let rank = 0; rank <= Math.max(...levels.values()); rank++) {
+    columns.push(width);
+    width += BOX_WIDTH + COLUMN_GAP * Math.max(1, edgeCounts.get(rank) ?? 0);
+  }
+  width += MARGIN;
   const rows = new Map<number, number>();
   const points = new Map(diagram.nodes.map((node) => {
     const rank = levels.get(node.id)!;
     const row = rows.get(rank) ?? 0;
     rows.set(rank, row + 1);
-    return [node.id, { x: MARGIN + rank * (BOX_WIDTH + COLUMN_GAP), y: MARGIN + row * (BOX_HEIGHT + ROW_GAP) }];
+    return [node.id, { x: columns[rank]!, y: MARGIN + row * (BOX_HEIGHT + ROW_GAP) }];
   }));
-  const width = 2 * MARGIN + (Math.max(...levels.values()) + 1) * (BOX_WIDTH + COLUMN_GAP);
   const height = 2 * MARGIN + Math.max(...rows.values()) * (BOX_HEIGHT + ROW_GAP);
-  const edges = diagram.edges.map((edge) => {
+  const edges = diagram.edges.map((edge, index) => {
     const from = points.get(edge.from)!; const to = points.get(edge.to)!;
     const startX = from.x + BOX_WIDTH; const startY = from.y + BOX_HEIGHT / 2;
     const sameColumn = from.x === to.x;
     const endX = sameColumn ? to.x + BOX_WIDTH : to.x;
     const endY = to.y + BOX_HEIGHT / 2;
-    const bendX = startX + COLUMN_GAP / 2;
+    const bendX = startX + COLUMN_GAP * (lanes[index]! + .5);
     const labelLines = lines(edge.label, 12);
     const labelY = (startY + endY) / 2;
     const path = edge.from === edge.to
       ? `M ${startX} ${startY - 20} H ${bendX} V ${startY + 20} H ${startX}`
       : `M ${startX} ${startY} H ${bendX} V ${endY} H ${endX}`;
-    return `<path d="${path}" fill="none" stroke="#82cdb9" stroke-width="2" marker-end="url(#arrow)"/>` +
-      `<rect x="${bendX - COLUMN_GAP / 2 + 8}" y="${labelY - labelLines.length * 8 - 4}" width="${COLUMN_GAP - 16}" height="${labelLines.length * 16 + 8}" fill="#10171d"/>` +
-      labelLines.map((line, index) => `<text x="${bendX}" y="${labelY + (index - (labelLines.length - 1) / 2) * 16}" font-size="13" fill="#e1e9ef" text-anchor="middle">${xml(line)}</text>`).join('');
+    return { path, labelLines, label: { x: bendX - COLUMN_GAP / 2 + 8, y: labelY - labelLines.length * 8 - 4,
+      width: COLUMN_GAP - 16, height: labelLines.length * 16 + 8 } };
   });
+  return { width, height, points, edges };
+}
+
+export function renderDiagram(diagram: Diagram): Buffer {
+  const { width, height, points, edges } = layoutDiagram(diagram);
+  const paths = edges.map((edge) => `<path d="${edge.path}" fill="none" stroke="#82cdb9" stroke-width="2" marker-end="url(#arrow)"/>`);
+  const labels = edges.map(({ label, labelLines }) =>
+    `<rect x="${label.x}" y="${label.y}" width="${label.width}" height="${label.height}" fill="#10171d"/>` +
+    labelLines.map((line, index) => `<text x="${label.x + label.width / 2}" y="${label.y + 16 * (index + 1)}" font-size="13" fill="#e1e9ef" text-anchor="middle">${xml(line)}</text>`).join(''));
   const nodes = diagram.nodes.map((node) => {
     const { x, y } = points.get(node.id)!;
     const labelLines = lines(node.label);
@@ -76,5 +97,5 @@ export function renderDiagram(diagram: Diagram): Buffer {
   return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${xml(diagram.title)}" font-family="monospace">` +
     `<title>${xml(diagram.title)}</title><rect width="${width}" height="${height}" fill="#10171d"/>` +
     '<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#82cdb9"/></marker></defs>' +
-    edges.join('') + nodes.join('') + '</svg>', 'utf8');
+    paths.join('') + labels.join('') + nodes.join('') + '</svg>', 'utf8');
 }
