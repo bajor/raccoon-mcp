@@ -25,6 +25,7 @@ async function command(root: string, options: string[], args: string[]): Promise
 export interface GitCommit { sha: string; parents: string[]; subject: string }
 export interface GitFile { blob: string; data: Buffer; text: string; lines: number }
 export interface GitChange { path: string; status: 'added' | 'modified' | 'deleted' | 'type-changed' }
+export interface GitEntry { mode: string; kind: string; object: string; path: string }
 export const sourceLineCount = (text: string): number => text === '' ? 0 : text.replace(/\n$/, '').split('\n').length;
 
 export class Git {
@@ -97,6 +98,18 @@ export class Git {
       result.push({ status: change, path: relativePath.parse(records[index + 1]) });
     }
     return result;
+  }
+
+  async entries(revision: string, path?: string): Promise<GitEntry[]> {
+    sha.parse(revision);
+    if (path !== undefined) relativePath.parse(path);
+    const records = (await this.text(['ls-tree', '-r', '-z', '--full-tree', revision, '--', ...(path ? [path] : [])])).split('\0').filter(Boolean);
+    return records.map((record) => {
+      const tab = record.indexOf('\t');
+      const [mode, kind, object] = record.slice(0, tab).split(' ');
+      if (tab < 0 || !mode || !kind || !object) throw new Error('Invalid Git tree entry');
+      return { mode, kind, object: sha.parse(object), path: relativePath.parse(record.slice(tab + 1)) };
+    });
   }
 
   async diff(revision: string, paths: string[] = []): Promise<string> {
