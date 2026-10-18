@@ -7,8 +7,8 @@ onboarded: 2026-10-18
 Read [the docs index](docs/index.md) before structural changes. Keep the constitution,
 requirements, decision records, behavior records, indexes and architecture aligned
 with code in the same PR. Supersede accepted decisions rather than rewriting them.
-Follow the global SVG-only policy: render Mermaid outside the repository, commit
-only temporary review SVGs under `visual-explanations/`, and link them in the PR.
+Do not create PR visual explanations unless explicitly requested. Artifact diagrams
+are part of the requested product, not default PR review illustrations.
 
 ## Working rules
 
