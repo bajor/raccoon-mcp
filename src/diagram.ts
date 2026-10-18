@@ -4,7 +4,7 @@ type Diagram = Draft['threads'][number]['diagrams'][number];
 const MAX_EDGES = 96;
 const BOX_WIDTH = 280;
 const BOX_HEIGHT = 110;
-const COLUMN_GAP = 140;
+const COLUMN_GAP = 220;
 const ROW_GAP = 65;
 const MARGIN = 65;
 
@@ -32,10 +32,10 @@ function ranks(diagram: Diagram): Map<string, number> {
   return result;
 }
 
-function lines(label: string): string[] {
+function lines(label: string, limit = 30): string[] {
   const characters = [...label];
   const result: string[] = [];
-  for (let start = 0; start < characters.length; start += 30) result.push(characters.slice(start, start + 30).join(''));
+  for (let start = 0; start < characters.length; start += limit) result.push(characters.slice(start, start + limit).join(''));
   return result;
 }
 
@@ -51,18 +51,21 @@ export function renderDiagram(diagram: Diagram): Buffer {
   }));
   const width = 2 * MARGIN + (Math.max(...levels.values()) + 1) * (BOX_WIDTH + COLUMN_GAP);
   const height = 2 * MARGIN + Math.max(...rows.values()) * (BOX_HEIGHT + ROW_GAP);
-  const edges = diagram.edges.map((edge, index) => {
+  const edges = diagram.edges.map((edge) => {
     const from = points.get(edge.from)!; const to = points.get(edge.to)!;
     const startX = from.x + BOX_WIDTH; const startY = from.y + BOX_HEIGHT / 2;
     const sameColumn = from.x === to.x;
     const endX = sameColumn ? to.x + BOX_WIDTH : to.x;
     const endY = to.y + BOX_HEIGHT / 2;
-    const bendX = sameColumn ? startX + 40 + index % 5 * 16 : (startX + endX) / 2;
+    const bendX = startX + COLUMN_GAP / 2;
+    const labelLines = lines(edge.label, 12);
+    const labelY = (startY + endY) / 2;
     const path = edge.from === edge.to
-      ? `M ${startX} ${startY - 15} C ${startX + 90} ${startY - 85}, ${startX + 90} ${startY + 85}, ${startX} ${startY + 15}`
-      : `M ${startX} ${startY} C ${bendX} ${startY}, ${bendX} ${endY}, ${endX} ${endY}`;
+      ? `M ${startX} ${startY - 20} H ${bendX} V ${startY + 20} H ${startX}`
+      : `M ${startX} ${startY} H ${bendX} V ${endY} H ${endX}`;
     return `<path d="${path}" fill="none" stroke="#82cdb9" stroke-width="2" marker-end="url(#arrow)"/>` +
-      `<text x="${bendX}" y="${(startY + endY) / 2 - 8}" font-size="13" fill="#e1e9ef" text-anchor="middle">${xml(edge.label)}</text>`;
+      `<rect x="${bendX - COLUMN_GAP / 2 + 8}" y="${labelY - labelLines.length * 8 - 4}" width="${COLUMN_GAP - 16}" height="${labelLines.length * 16 + 8}" fill="#10171d"/>` +
+      labelLines.map((line, index) => `<text x="${bendX}" y="${labelY + (index - (labelLines.length - 1) / 2) * 16}" font-size="13" fill="#e1e9ef" text-anchor="middle">${xml(line)}</text>`).join('');
   });
   const nodes = diagram.nodes.map((node) => {
     const { x, y } = points.get(node.id)!;
