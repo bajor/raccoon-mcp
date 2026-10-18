@@ -77,7 +77,8 @@ test('multiple merge bases never classify shared base commits as PR work', async
   const head = git(root, ['commit-tree', changedTree, '-p', y, '-p', x, '-m', 'PR merge']);
   const snapshot = await freeze(await Git.open(root), { repository: 'bajor/example', pr: 1,
     title: 'Criss-cross history', branch: 'feature', baseSha: base, headSha: head });
-  assert.deepEqual(snapshot.commits.map((item) => item.sha), [head]);
+  assert.deepEqual({ commits: snapshot.commits.map((item) => item.sha), excluded: snapshot.excludedCommits },
+    { commits: [head], excluded: [] });
 });
 
 test('historical file reads ignore modified working-tree source', async (context) => {
