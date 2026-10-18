@@ -75,3 +75,10 @@ official SDK owns protocol framing and handshake negotiation. Its 10 MiB stdio
 message limit bounds a draft, not full packaged Git source or total history depth.
 Evidence responses over 4 MiB fail with a request for a smaller page rather than
 silently truncating source. Individual Git command bounds still apply.
+
+## Review amendment
+
+Beginning a generation propagates MCP cancellation through setup. Cancellation
+before delivery and response-size rejection both release the new session instead
+of retaining a lock whose UUID never reached the client. Real MCP regressions
+cover a 12,000-file inventory and cancellation during blocked discovery.

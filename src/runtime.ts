@@ -64,14 +64,15 @@ export class Runtime {
     return { git, snapshot, previous: await currentGeneration(git, snapshot.source) };
   }
 
-  async begin(name: string, pr: number, intent: z.infer<typeof intentSchema>) {
+  async begin(name: string, pr: number, intent: z.infer<typeof intentSchema>, signal?: AbortSignal) {
     this.root(name); intentSchema.parse(intent);
-    const pending = this.start(name, pr, intent);
+    const pending = this.start(name, pr, intent, signal);
     this.starting.add(pending);
     try { return await pending; } finally { this.starting.delete(pending); }
   }
 
-  private async start(name: string, pr: number, intent: z.infer<typeof intentSchema>) {
+  private async start(name: string, pr: number, intent: z.infer<typeof intentSchema>, signal?: AbortSignal) {
+    signal?.throwIfAborted();
     const lock = await acquireGenerationLock(this.options.stateDirectory, name, pr);
     try {
       const inspection = await this.inspect(name, pr);
@@ -81,6 +82,7 @@ export class Runtime {
       if (!info.isFile() || info.size > MAX_PROFILE_BYTES || (info.mode & 0o077) || info.uid !== process.getuid?.()) throw new Error('Reader profile must be private, user-owned and at most 64 KiB');
       const profile = await readFile(this.options.profilePath);
       const profileText = new TextDecoder('utf-8', { fatal: true }).decode(profile);
+      signal?.throwIfAborted();
       if (this.closing) throw new Error('Runtime is closing');
       this.sessions.set(lock.session, { ...inspection, profile, release: lock.release, state: { kind: 'active' } });
       return { session: lock.session, snapshot: structuredClone(inspection.snapshot), profile: profileText };
