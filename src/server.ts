@@ -24,7 +24,11 @@ export function createServer(runtime: Runtime): McpServer {
   });
   server.registerTool('begin_generation', { description: 'Lock and freeze an explicitly requested PR; return its private explanation profile.',
     inputSchema: z.strictObject({ ...identity, intent: intentSchema }), annotations: { destructiveHint: false, idempotentHint: false } },
-  async ({ repository, pr, intent }) => reply(await runtime.begin(repository, pr, intent)));
+  async ({ repository, pr, intent }, context) => {
+    const started = await runtime.begin(repository, pr, intent, context.mcpReq.signal);
+    try { context.mcpReq.signal.throwIfAborted(); return reply(started); }
+    catch (error) { await runtime.cancel(started.session); throw error; }
+  });
   server.registerTool('paths', { description: 'Page pinned Git tree entries to find existing source context. No working-tree reads.',
     inputSchema: z.strictObject({ ...evidence, ...paging, prefix: relativePath.optional() }), annotations: readOnly },
   async ({ session, revision, skip, count, prefix }) => {
