@@ -25,6 +25,7 @@ export function artifact(): Artifact {
     source: { repository: 'bajor/example', pr: 1, title: 'Handler', branch: 'feature',
       baseSha: commit, mergeBaseSha: commit, headSha: commit },
     commits: [{ sha: commit, subject: 'Add handler', parents: [], phase: 'pr' }],
+    changes: [{ id: 'c1', commit, path: 'src/main.ts', status: 'added' }],
     content: draft(),
     files: [{ reference: 'r1', blob: commit, sha256: hash, file: `files/${hash}.txt`, bytes: 8, lines: 2 }],
     diagrams: [{ thread: 'flow', diagram: 'request', file: 'diagrams/flow/request.svg', sha256: hash }],

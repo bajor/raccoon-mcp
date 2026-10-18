@@ -22,6 +22,18 @@ Diagram nodes cite code references. A source change belongs to one primary threa
 other threads may cite it as context. This preserves coverage without duplicating
 ownership. A thread may span commits and a commit may affect multiple threads.
 
+The packaged `changes` inventory is deterministic: one changed source path per PR
+commit. Every entry has one primary thread, and that thread must explain the
+commit in a stage. Other threads may cite the same path. The builder, not the
+agent, supplies the inventory. Contract validation checks coverage against it;
+the builder additionally checks it against Git. Commit arrays and thread stages
+are ancestor-first. References may also name the pinned base, merge base or head.
+
+Narrative is plain text, not Markdown or HTML. Code blocks are rejected as an
+authoring guard; only Git asset references are authoritative code. It is not
+possible to prove from prose alone that an agent did not invent an inline quote.
+All exported schemas enforce relationship checks, including direct `safeParse`.
+
 Architecture views are inspected during PR review. Per the global review-artifact
 policy, Mermaid is rendered outside the repository and only temporary SVGs are
 committed under `visual-explanations/`. Permanent docs retain the textual contract.

@@ -33,7 +33,10 @@ for (const file of files) {
     if (!['link', 'image'].includes(token.type)) return;
     const href = token.href.split('#')[0];
     if (!href || /^[a-z][a-z\d+.-]*:/i.test(href)) return;
-    const target = href.startsWith('/') ? resolve(root, `.${decodeURI(href)}`) : resolve(dirname(path), decodeURI(href));
+    let decoded;
+    try { decoded = decodeURI(href); }
+    catch { errors.push(`${file}: invalid link URI ${href}`); return; }
+    const target = href.startsWith('/') ? resolve(root, `.${decoded}`) : resolve(dirname(path), decoded);
     targets.push(target);
     if (!existsSync(target)) errors.push(`${file}: broken link ${href}`);
   });
