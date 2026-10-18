@@ -28,10 +28,15 @@ commit in a stage. Other threads may cite the same path. The builder, not the
 agent, supplies the inventory. Contract validation checks coverage against it;
 the builder additionally checks it against Git. Commit arrays and thread stages
 are ancestor-first. References may also name the pinned base, merge base or head.
+Generated-only and empty PR commits are listed explicitly in `excludedCommits`
+with a reason, not silently dropped or turned into invented source changes.
+The Git builder verifies inclusion, exclusion and ancestry against the real graph.
+Git paths are metadata and may contain backslashes; only canonical, lowercase
+asset paths are written to disk. Empty Git commit subjects are preserved.
 
-Narrative is plain text, not Markdown or HTML. Code blocks are rejected as an
-authoring guard; only Git asset references are authoritative code. It is not
-possible to prove from prose alone that an agent did not invent an inline quote.
+Narrative is plain text, not Markdown or HTML. Only Git asset references are
+authoritative code. The skill forbids copied source in prose; a schema cannot
+prove that arbitrary prose is not invented code, so it does not claim to do so.
 All exported schemas enforce relationship checks, including direct `safeParse`.
 
 Architecture views are inspected during PR review. Per the global review-artifact

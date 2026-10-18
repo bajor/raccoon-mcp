@@ -2,6 +2,7 @@ import type { Artifact, Draft } from '../src/contract.js';
 
 export const commit = 'a'.repeat(40);
 export const hash = 'b'.repeat(64);
+export const base = '0'.repeat(40);
 
 export function draft(): Draft {
   return {
@@ -23,9 +24,10 @@ export function artifact(): Artifact {
     version: 1, generation: '71defc62-8b6b-4f81-80ce-c7ed4b639df7',
     createdAt: '2026-10-18T00:00:00Z', profileHash: hash,
     source: { repository: 'bajor/example', pr: 1, title: 'Handler', branch: 'feature',
-      baseSha: commit, mergeBaseSha: commit, headSha: commit },
-    commits: [{ sha: commit, subject: 'Add handler', parents: [], phase: 'pr' }],
+      baseSha: base, mergeBaseSha: base, headSha: commit },
+    commits: [{ sha: commit, subject: 'Add handler', parents: [base], phase: 'pr' }],
     changes: [{ id: 'c1', commit, path: 'src/main.ts', status: 'added' }],
+    excludedCommits: [],
     content: draft(),
     files: [{ reference: 'r1', blob: commit, sha256: hash, file: `files/${hash}.txt`, bytes: 8, lines: 2 }],
     diagrams: [{ thread: 'flow', diagram: 'request', file: 'diagrams/flow/request.svg', sha256: hash }],

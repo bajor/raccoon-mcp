@@ -3,18 +3,20 @@ import { z } from 'zod';
 export const ARTIFACT_ROOT = 'raccoon-artifacts';
 export const CONTRACT_VERSION = 1;
 // IDs become portable filenames, including on case-insensitive filesystems.
-const id = z.string().max(64).regex(/^[a-z0-9][a-z0-9_-]*$/);
+const id = z.string().max(64).regex(/^[a-z0-9][a-z0-9_-]*$/)
+  .refine((value) => !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/.test(value), 'Reserved filename');
 export const sha = z.string().regex(/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/);
 export const digest = z.string().regex(/^[a-f0-9]{64}$/);
-export const repository = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9-]*\/[a-zA-Z0-9_][a-zA-Z0-9_.-]*$/);
+export const repository = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]*\/[a-zA-Z0-9_.-]+$/)
+  .refine((value) => !['.', '..'].includes(value.split('/')[1]!), 'Invalid repository name');
 export const relativePath = z.string().min(1).refine((value) =>
-  !value.startsWith('/') && !value.includes('\\') && !value.includes('\0') &&
+  !value.startsWith('/') && !value.includes('\0') &&
   value.split('/').every((part) => part !== '' && part !== '.' && part !== '..'),
   'Expected a repository-relative path without traversal');
 const text = z.string().trim().min(1);
 
 export const commitSchema = z.strictObject({
-  sha, subject: text, parents: z.array(sha), phase: z.enum(['pr', 'before-pr']),
+  sha, subject: z.string(), parents: z.array(sha), phase: z.enum(['pr', 'before-pr']),
 });
 export const changeSchema = z.strictObject({
   id, commit: sha, path: relativePath, status: z.enum(['added', 'modified', 'deleted', 'renamed', 'type-changed']),
@@ -25,8 +27,7 @@ export const referenceSchema = z.strictObject({
 }).refine((ref) => ref.endLine >= ref.startLine, 'Reversed line range');
 
 export const blockSchema = z.strictObject({
-  text: text.refine((value) => !/```|~~~|^(?: {4}|\t)\S|<\/?(?:pre|code)\b/im.test(value),
-    'Source code belongs in references, not narrative code blocks'),
+  text,
   evidence: z.enum(['fact', 'inference', 'unknown']),
   refs: z.array(id).min(1),
 });
@@ -35,7 +36,7 @@ const diagramSchema = z.strictObject({
   nodes: z.array(z.strictObject({ id, label: text.max(160), refs: z.array(id).min(1) })).min(1).max(24),
   edges: z.array(z.strictObject({ from: id, to: id, label: z.string().max(80) })),
 });
-export const threadSchema = z.strictObject({
+const threadSchema = z.strictObject({
   id, title: text.max(100), summary: text,
   current: z.array(blockSchema).min(1),
   stages: z.array(z.strictObject({ commit: sha, title: text, blocks: z.array(blockSchema).min(1) })).min(1),
@@ -56,6 +57,7 @@ const artifactShape = z.strictObject({
   version: z.literal(CONTRACT_VERSION), generation: z.uuid(), createdAt: z.iso.datetime(),
   source: sourceSchema, profileHash: digest, commits: z.array(commitSchema).min(1),
   changes: z.array(changeSchema).min(1),
+  excludedCommits: z.array(z.strictObject({ sha, reason: z.enum(['generated-only', 'no-source-change']) })),
   content: draftSchema,
   files: z.array(z.strictObject({
     reference: id, blob: sha, sha256: digest, file: relativePath,
@@ -101,9 +103,13 @@ function checkDraft(draft: z.infer<typeof draftShape>, context: z.RefinementCtx)
   unique(draft.threads.map((thread) => thread.id), context, ['threads'], 'thread ID');
   unique(draft.assignments.map((assignment) => assignment.change), context, ['assignments'], 'change assignment');
   const refs = new Set(draft.references.map((ref) => ref.id));
+  const cited = new Set<string>();
   const threads = new Set(draft.threads.map((thread) => thread.id));
   const checkRefs = (ids: string[], path: IssuePath) => {
-    for (const ref of ids) if (!refs.has(ref)) issue(context, path, `Unknown reference ${ref}`);
+    for (const ref of ids) {
+      cited.add(ref);
+      if (!refs.has(ref)) issue(context, path, `Unknown reference ${ref}`);
+    }
   };
   for (const [index, assignment] of draft.assignments.entries()) {
     if (!threads.has(assignment.thread)) issue(context, ['assignments', index, 'thread'], `Unknown thread ${assignment.thread}`);
@@ -124,11 +130,14 @@ function checkDraft(draft: z.infer<typeof draftShape>, context: z.RefinementCtx)
       }
     }
   }
+  for (const ref of refs) if (!cited.has(ref)) issue(context, ['references'], `Uncited reference ${ref}`);
 }
 
 function checkArtifact(artifact: z.infer<typeof artifactShape>, context: z.RefinementCtx): void {
   unique(artifact.commits.map((commit) => commit.sha), context, ['commits'], 'commit');
   unique(artifact.changes.map((change) => change.id), context, ['changes'], 'change');
+  unique(artifact.changes.map((change) => `${change.commit}:${change.path}`), context, ['changes'], 'changed path in commit');
+  unique([...artifact.commits.map((commit) => commit.sha), ...artifact.excludedCommits.map((commit) => commit.sha)], context, ['excludedCommits'], 'included or excluded commit');
   unique(artifact.files.map((file) => file.reference), context, ['files'], 'reference file');
   unique(artifact.diagrams.map((file) => file.file), context, ['diagrams'], 'diagram asset');
   checkAssets(artifact, context);
@@ -139,6 +148,7 @@ function checkArtifact(artifact: z.infer<typeof artifactShape>, context: z.Refin
 function checkAssets(artifact: Artifact, context: z.RefinementCtx): void {
   const expected = new Set(artifact.content.references.map((ref) => ref.id));
   const metadata = new Map<string, string>();
+  const blobs = new Map<string, string>();
   for (const [index, file] of artifact.files.entries()) {
     if (!expected.has(file.reference)) issue(context, ['files', index], `Extra reference file ${file.reference}`);
     if (file.file !== `files/${file.sha256}.txt`) issue(context, ['files', index, 'file'], 'Noncanonical source asset path');
@@ -147,6 +157,8 @@ function checkAssets(artifact: Artifact, context: z.RefinementCtx): void {
       issue(context, ['files', index], 'Inconsistent metadata for identical source bytes');
     }
     metadata.set(file.sha256, description);
+    if (blobs.has(file.blob) && blobs.get(file.blob) !== file.sha256) issue(context, ['files', index], 'Inconsistent bytes for Git blob');
+    blobs.set(file.blob, file.sha256);
   }
   const expectedDiagrams = new Set(artifact.content.threads.flatMap((thread) => thread.diagrams.map((diagram) => `${thread.id}/${diagram.id}`)));
   for (const [index, file] of artifact.diagrams.entries()) {
@@ -156,9 +168,15 @@ function checkAssets(artifact: Artifact, context: z.RefinementCtx): void {
   }
   for (const key of expectedDiagrams) issue(context, ['diagrams'], `Missing diagram ${key}`);
   const files = new Map(artifact.files.map((file) => [file.reference, file]));
+  const revisions = new Map<string, string>();
   for (const [index, ref] of artifact.content.references.entries()) {
     const file = files.get(ref.id);
     if (!file || ref.endLine > file.lines) issue(context, ['content', 'references', index], `Missing or out-of-range file for ${ref.id}`);
+    const revision = `${ref.commit}:${ref.path}`;
+    if (file && revisions.has(revision) && revisions.get(revision) !== file.blob) {
+      issue(context, ['files'], 'Inconsistent file for commit:path');
+    }
+    if (file) revisions.set(revision, file.blob);
   }
 }
 
@@ -183,16 +201,24 @@ function checkCoverage(artifact: Artifact, context: z.RefinementCtx): void {
 
 function checkTimeline(artifact: Artifact, context: z.RefinementCtx): void {
   const order = new Map(artifact.commits.map((commit, index) => [commit.sha, index]));
-  const allowed = new Set([...order.keys(), artifact.source.baseSha, artifact.source.mergeBaseSha, artifact.source.headSha]);
+  const includedOrExcluded = new Set([...order.keys(), ...artifact.excludedCommits.map((commit) => commit.sha)]);
+  const allowed = new Set([...includedOrExcluded, artifact.source.baseSha, artifact.source.mergeBaseSha]);
+  if (!includedOrExcluded.has(artifact.source.headSha)) issue(context, ['source', 'headSha'], 'Head must be an included or explicitly excluded commit');
+  const phases = new Map(artifact.commits.map((commit) => [commit.sha, commit.phase]));
+  if (phases.get(artifact.source.baseSha) === 'pr' || phases.get(artifact.source.mergeBaseSha) === 'pr') {
+    issue(context, ['source'], 'Base and merge base cannot be PR commits');
+  }
   for (const [index, commit] of artifact.commits.entries()) {
     if (commit.parents.some((parent) => order.has(parent) && order.get(parent)! >= index)) {
       issue(context, ['commits', index], 'Commits must be in ancestor-first order');
+    }
+    if (commit.phase === 'before-pr' && commit.parents.some((parent) => phases.get(parent) === 'pr')) {
+      issue(context, ['commits', index], 'Pre-PR commit cannot descend from a PR commit');
     }
     if (commit.phase === 'pr' && !artifact.changes.some((change) => change.commit === commit.sha)) {
       issue(context, ['commits', index], 'PR commit has no source changes');
     }
   }
-  const phases = new Map(artifact.commits.map((commit) => [commit.sha, commit.phase]));
   for (const [index, change] of artifact.changes.entries()) {
     if (phases.get(change.commit) !== 'pr') issue(context, ['changes', index], 'Change must belong to a PR commit');
   }
