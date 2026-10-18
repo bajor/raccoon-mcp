@@ -49,3 +49,7 @@ denser explanations into multiple diagrams. These are explicit failures, not tru
 Wrap edge labels in a reserved gutter outside node rectangles, including self-loops.
 The SVG viewport includes that gutter, so accepted 80-character edge labels remain
 visible instead of being hidden by nodes or clipped at the diagram boundary.
+
+Each edge gets a separate label lane, including edges sharing their source node.
+Paint all paths before labels so later edges cannot obscure earlier label text.
+A focused fan-out geometry regression checks that complete label bounds do not overlap.
