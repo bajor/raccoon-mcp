@@ -24,6 +24,8 @@ description: Install the local MCP and host skill on the VPS, then import genera
 Replace the example root and repository mapping below with authorized absolute
 paths. Choose the command for each installed host. These are user-global settings;
 stop if the server name `raccoon` already belongs to another configuration.
+Before changing host configuration, keep a private backup and compare the result.
+Host CLIs can normalize existing MCP entries when adding a server.
 
 ```sh
 opencode mcp add raccoon --global \
@@ -49,12 +51,14 @@ not overwrite existing paths; inspect a collision instead of using `ln -f`.
 
 ```sh
 mkdir -p "$HOME/.agents/skills" "$HOME/.claude/skills"
-ln -s /absolute/path/to/raccoon-mcp/skills/raccoon "$HOME/.agents/skills/raccoon"
-ln -s /absolute/path/to/raccoon-mcp/skills/raccoon "$HOME/.claude/skills/raccoon"
+ln -sT /absolute/path/to/raccoon-mcp/skills/raccoon "$HOME/.agents/skills/raccoon"
+ln -sT /absolute/path/to/raccoon-mcp/skills/raccoon "$HOME/.claude/skills/raccoon"
 ```
 
 Codex reads `~/.agents/skills`; OpenCode reads that location and `~/.claude/skills`;
 Claude Code reads `~/.claude/skills`. Both symlinks point to the same reviewed file.
+Linux `ln -sT` rejects an existing destination, including a directory or symlink,
+instead of creating another link inside it.
 Reconnect the MCP or start a new host session after installation. Check that the
 `raccoon` server connects, exposes eight tools and the `raccoon` skill is listed.
 Adding configuration alone is not proof of a successful connection.
