@@ -50,3 +50,8 @@ authorization, locking, expected-generation and uncertain-outcome rules still ap
 | Authoring guidance | Manual offline evaluation | English continuous prose, inline evidence and honest history; no claim of automated prose-quality validation |
 
 Acceptance: relevant checks pass and no legacy generation or reader path remains.
+
+One isolated synthetic authoring evaluation passed five checks with both the new
+and previous guidance. Both outputs were English and used inline evidence. This
+does not establish comparative quality or live publication; token and timing
+metrics were unavailable. Real-PR generation and physical iPad acceptance remain pending.

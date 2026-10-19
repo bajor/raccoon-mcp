@@ -4,6 +4,7 @@ import type { Draft } from './contract.js';
 type Diagram = Draft['chapters'][number]['diagrams'][number];
 type Layout = 'landscape' | 'portrait';
 type Point = { x: number; y: number };
+type Route = { points: Point[]; x?: number; y?: number };
 const FONT_SIZE = 14;
 const LINE_HEIGHT = 20;
 const CHARACTER_WIDTH = 9;
@@ -32,18 +33,31 @@ export function layoutDiagram(diagram: Diagram, orientation: Layout = 'landscape
   const graph = new Graph({ multigraph: true });
   graph.setGraph({ rankdir: orientation === 'landscape' ? 'LR' : 'TB', ranksep: 40,
     nodesep: 28, edgesep: 20, marginx: 24, marginy: 24 });
+  const ids = new Map(diagram.nodes.map((node, index) => [node.id, `node-${index}`]));
   const labels = diagram.nodes.map((node) => measure(node.label));
-  diagram.nodes.forEach((node, index) => graph.setNode(node.id, labels[index]!));
+  diagram.nodes.forEach((node, index) => graph.setNode(ids.get(node.id)!, { width: labels[index]!.width, height: labels[index]!.height }));
   const edgeLabels = diagram.edges.map((edge) => edge.label.trim() ? measure(edge.label) : { lines: [], width: 0, height: 0 });
-  diagram.edges.forEach((edge, index) => graph.setEdge(edge.from, edge.to,
-    { ...edgeLabels[index]!, labelpos: 'c' }, String(index)));
+  diagram.edges.forEach((edge, index) => {
+    const from = ids.get(edge.from)!; const to = ids.get(edge.to)!;
+    if (from !== to) graph.setEdge(from, to, { ...edgeLabels[index]!, labelpos: 'c' }, String(index));
+    else {
+      // A label node keeps self-loop attachment and bounds in the same routing model.
+      graph.setNode(`loop-${index}`, { width: Math.max(1, edgeLabels[index]!.width), height: Math.max(1, edgeLabels[index]!.height) });
+      graph.setEdge(from, `loop-${index}`, {}, `${index}-out`);
+      graph.setEdge(`loop-${index}`, from, {}, `${index}-back`);
+    }
+  });
   layout(graph);
   const nodes = diagram.nodes.map((node, index) => {
-    const placed: Point & { width: number; height: number } = graph.node(node.id);
+    const placed: Point & { width: number; height: number } = graph.node(ids.get(node.id)!);
     return { ...labels[index]!, x: placed.x - placed.width / 2, y: placed.y - placed.height / 2, label: node.label };
   });
   const edges = diagram.edges.map((edge, index) => {
-    const placed: { points: Point[]; x?: number; y?: number } = graph.edge(edge.from, edge.to, String(index));
+    const from = ids.get(edge.from)!; const to = ids.get(edge.to)!;
+    const placed: Route = from === to ? { ...graph.node(`loop-${index}`), points: [
+      ...(graph.edge(from, `loop-${index}`, `${index}-out`) as Route).points,
+      ...(graph.edge(`loop-${index}`, from, `${index}-back`) as Route).points,
+    ] } : graph.edge(from, to, String(index));
     const { width, height, lines } = edgeLabels[index]!;
     return { points: placed.points, lines, label: { x: (placed.x ?? 0) - width / 2, y: (placed.y ?? 0) - height / 2, width, height } };
   });
