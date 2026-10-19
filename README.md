@@ -5,7 +5,11 @@ understanding a PR, not reviewing, editing or merging it.
 
 The agent using the supplied skill writes explanations and code references. The
 MCP server reads Git objects, validates references, copies real files, and builds
-one complete artifact per PR. It does not call a model or require an AI API key.
+one complete English article per PR, with functional chapters, inline Git excerpts
+and printable diagrams. It does not call a model or require an AI API key.
+
+Artifact version 2 replaces the former reading workspace. Older packages are
+unsupported and must be explicitly removed and regenerated, not migrated silently.
 
 The companion [web reader](https://github.com/bajor/raccoon-ios) imports local
 artifacts on an iPad. No private source is uploaded to that reader's host.

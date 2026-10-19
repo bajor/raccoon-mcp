@@ -2,13 +2,18 @@
 type: Constitution
 title: Raccoon constitution
 description: Scope and invariants approved on 2026-10-18.
-status: Ratified
+status: Amended
 ---
 
 # Raccoon constitution
 
 Raccoon helps the person who commissioned agent-written code understand the
 result. It organizes a PR into functional threads, not review findings.
+
+Amendment, 2026-10-19: publish an English, continuous article whose chapters
+represent those threads. Code and diagrams appear inline; history belongs in
+chapter prose. The user removed backward compatibility from scope. Version 2
+replaces the current/stage workspace model rather than adding another reader path.
 
 A snapshot pins a PR's Git revisions. Each thread explains the resulting
 mechanism, relevant existing code, every relevant PR commit, and selected older

@@ -1,7 +1,8 @@
 ---
 type: BDR
 description: Generate one complete learning artifact through the host agent without automatic publication after coding.
-status: Implemented
+status: Superseded
+superseded_by: "0007"
 ---
 
 # Host-agent explanation workflow

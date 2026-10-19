@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Replace version 1 with English continuous articles and explicitly ordered inline evidence.
+- Render compact portrait and landscape diagrams for automatic fitting and printing.
+- Remove the old current/stage model without a compatibility adapter.
+
 ## [0.1.0] - 2026-10-18
 
 - Define the snapshot, thread, timeline, reference and diagram contract.

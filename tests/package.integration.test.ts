@@ -16,18 +16,28 @@ test('complete historical assets come from Git rather than dirty source', async 
     [{ content: currentText, bytes: Buffer.byteLength(currentText), lines: 3 }, { content: 'one\ntwo\n', bytes: 8, lines: 2 }]);
 });
 
-test('selected older stages precede PR stages in the packaged timeline', async (context) => {
+test('selected history precedes PR commits without changing article reading order', async (context) => {
   const { git, source, draft } = await packageFixture();
   context.after(() => rm(git.root, { recursive: true, force: true }));
   const result = await buildArtifact(git, source, draft, Buffer.from('private profile'));
   assert.deepEqual(result.manifest.commits.map((commit) => [commit.sha, commit.phase]),
     [[source.baseSha, 'before-pr'], [source.headSha, 'pr']]);
+  assert.deepEqual(result.manifest.content.chapters[0]!.sections.map((section) => section.commit), [source.headSha, source.baseSha]);
+  assert.deepEqual(result.manifest.diagrams.map((diagram) => diagram.layout), ['landscape', 'portrait']);
 });
 
 for (const [name, alter, message] of [
   ['out-of-range reference', (draft: Awaited<ReturnType<typeof packageFixture>>['draft']) => { draft.references[0]!.endLine = 50; }, /exceeds the real file/],
   ['unowned source change', (draft: Awaited<ReturnType<typeof packageFixture>>['draft']) => { draft.assignments[0]!.change = 'invented'; }, /Unknown change|Unassigned changes/],
-  ['future stage evidence', (draft: Awaited<ReturnType<typeof packageFixture>>['draft']) => { draft.threads[0]!.stages[0]!.blocks[0]!.refs = ['current', 'older']; }, /did not exist at diagram\/stage/],
+  ['future prose evidence', (draft: Awaited<ReturnType<typeof packageFixture>>['draft']) => {
+    draft.chapters[0]!.sections[1]!.blocks.find((block) => block.kind === 'prose')!.refs = ['current', 'older'];
+  }, /did not exist at diagram\/section/],
+  ['future inline code', (draft: Awaited<ReturnType<typeof packageFixture>>['draft']) => {
+    draft.chapters[0]!.sections[1]!.blocks.push({ kind: 'code', reference: 'current' });
+  }, /did not exist at diagram\/section/],
+  ['future inline diagram', (draft: Awaited<ReturnType<typeof packageFixture>>['draft']) => {
+    draft.chapters[0]!.sections[1]!.blocks.push({ kind: 'diagram', diagram: 'flow' });
+  }, /Inline diagram did not exist/],
 ] as const) test(`rejects an entire package with ${name}`, async (context) => {
   const { git, source, draft } = await packageFixture();
   context.after(() => rm(git.root, { recursive: true, force: true }));
@@ -41,7 +51,7 @@ test('unrelated selected history cannot enter a package', async (context) => {
   const tree = runGit(git.root, ['rev-parse', `${source.baseSha}^{tree}`]);
   const unrelated = runGit(git.root, ['commit-tree', tree, '-m', 'Unrelated root']);
   draft.references[1]!.commit = unrelated;
-  draft.threads[0]!.stages[0]!.commit = unrelated;
+  draft.chapters[0]!.sections[1]!.commit = unrelated;
   await assert.rejects(buildArtifact(git, source, draft, Buffer.from('private')), /not a shared ancestor/);
 });
 

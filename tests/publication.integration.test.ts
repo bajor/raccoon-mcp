@@ -36,7 +36,8 @@ test('expected regeneration replaces only the target managed assets', async (con
   const { git, source, pkg, previous } = await previousFixture(context);
   const remote = new GitHubDouble(source);
   await publishArtifact(git, remote.github, pkg, previous.manifest.generation);
-  assert.deepEqual(remote.changes.deletions, [{ path: 'raccoon-artifacts/pr-1/diagrams/handler/obsolete.svg' }]);
+  assert.deepEqual(remote.changes.deletions, ['landscape', 'portrait'].map((layout) =>
+    ({ path: `raccoon-artifacts/pr-1/diagrams/handler/obsolete-${layout}.svg` })));
   const catalog = remote.changes.additions.find((file) => file.path === 'raccoon-artifacts/catalog.json')!;
   assert.deepEqual(JSON.parse(Buffer.from(catalog.contents, 'base64').toString()).artifacts,
     [{ pr: 1, manifest: 'pr-1/manifest.json' }, { pr: 2, manifest: 'pr-2/manifest.json' }]);
