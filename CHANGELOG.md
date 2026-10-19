@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Run CI once per pull request update, while retaining checks on pushes to main.
 - Replace version 1 with English continuous articles and explicitly ordered inline evidence.
 - Render compact portrait and landscape diagrams for automatic fitting and printing.
 - Remove the old current/stage model without a compatibility adapter.
