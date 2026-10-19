@@ -71,3 +71,15 @@ test('valid contract IDs do not collide with graphlib object properties', () => 
   const { width, height } = renderDiagram(diagram);
   assert.ok(Number.isFinite(width) && width > 0 && Number.isFinite(height) && height > 0);
 });
+
+for (const orientation of ['landscape', 'portrait'] as const) test(`${orientation} renders disconnected parallel-edge graphs`, () => {
+  const diagram = draft().chapters[0]!.diagrams[0]!;
+  diagram.nodes = ['idle', 'branch', 'sink', 'middle', 'source'].map((id) => ({ id, label: id, refs: ['r1'] }));
+  diagram.edges = [
+    { from: 'source', to: 'sink', label: 'accept' }, { from: 'source', to: 'sink', label: 'reject' },
+    { from: 'source', to: 'sink', label: 'retry' }, { from: 'branch', to: 'middle', label: 'prepare' },
+    { from: 'middle', to: 'sink', label: 'finish' }, { from: 'source', to: 'branch', label: 'dispatch' },
+  ];
+  const rendered = renderDiagram(diagram, orientation);
+  assert.ok(Number.isFinite(rendered.width) && rendered.width > 0 && Number.isFinite(rendered.height) && rendered.height > 0);
+});
