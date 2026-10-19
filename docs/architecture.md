@@ -65,3 +65,9 @@ shutdown sequence live in [generation sessions](/bdr/0005-generation-session.md)
 The maintained Apache-2.0/MIT SDK packages own framing and negotiation rather than
 a handwritten protocol. The server package depends only on core and existing Zod;
 the official client is a development-only wire-test dependency.
+
+`skills/raccoon/SKILL.md` is the portable host-agent explanation workflow. It
+consumes the private preferences returned by begin, writes narrative and Git
+references, and calls the deterministic MCP tools. Its generation flow lives in
+[host-agent behavior](/bdr/0006-generation-skill.md); operator setup lives in
+[installation](/context/setup.md). Neither the skill nor server calls another model.
