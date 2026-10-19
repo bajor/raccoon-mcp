@@ -37,3 +37,9 @@ one. No automatic deletion or legacy ownership inference is introduced.
 Contract tests enforce block relationships and dual assets; real-Git integration
 tests enforce source ranges and temporal evidence. Rendering and publication
 remain deterministic server responsibilities. The agent never supplies code or SVG.
+
+## Verification amendment, 2026-10-19
+
+Reject Dagre 3.1.1 after review reproduced disconnected multigraph failures and
+detached self-loops. Pin 2.0.4 and compute the output viewport from actual geometry.
+Do not retain custom self-loop or component routing as a second layout algorithm.
