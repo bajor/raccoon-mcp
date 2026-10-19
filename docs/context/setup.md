@@ -17,7 +17,7 @@ description: Install the local MCP and host skill on the VPS, then import genera
    in the [README](../../README.md#local-mcp-runtime).
 4. Keep your editable reader profile at `~/.config/raccoon/READER.md`, mode `600`,
    outside every configured source root. Keep existing credential configuration
-   untouched. Explanation language and teaching preferences belong in this profile.
+   untouched. Teaching preferences belong in this profile; articles are always English.
 
 ## Connect the host agent
 
@@ -66,7 +66,7 @@ Adding configuration alone is not proof of a successful connection.
 ## Generate and read
 
 1. Ask the host: `Wygeneruj Raccoona dla https://github.com/owner/project/pull/123`.
-   It generates the entire explanation without asking you to approve thread names.
+   It generates the entire explanation without asking you to approve chapter titles.
    If a package already exists, explicitly authorize complete regeneration before
    replacing it. Regeneration resets reading progress for that PR only.
 2. Confirm the returned source SHA, generation UUID and artifact-only commit URL.
