@@ -20,3 +20,10 @@ successful generation. A recommended reusable workflow cleans merged artifacts
 from `main`; deleting files does not erase Git history or browser copies.
 
 Verification: contract tests, builder publication tests and reader import tests.
+
+## Implementation clarification, 2026-10-19
+
+The skill now requests the artifact commit through the MCP's
+[atomic publication operation](/bdr/0004-publication.md), instead of running local
+commit and push commands itself. The approved destination and artifact-only
+boundary are unchanged; local source, index and branch state remain untouched.

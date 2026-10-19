@@ -12,3 +12,5 @@
   checking the expected branch head and previous generation without local source changes.
 - Serve the private generation lifecycle over local MCP with explicit repository
   access, exclusive PR locks and complete-draft publication.
+- Supply the portable host-agent Raccoon skill and document private VPS setup,
+  explicit regeneration and external synchronization into the iPad reader.

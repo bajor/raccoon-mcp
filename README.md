@@ -53,4 +53,5 @@ Raccoon uses it to explain how the mechanism evolved, including reversals.
 ## Docs index
 
 [Documentation](docs/index.md) contains the ratified scope and contract.
-The host-agent generation skill and host-specific installation are the next slice.
+[Install and use Raccoon](docs/context/setup.md) covers OpenCode V2, Claude Code
+and Codex setup, the [generation skill](skills/raccoon/SKILL.md), and iPad import.
