@@ -25,9 +25,14 @@ export function createServer(runtime: Runtime): McpServer {
   server.registerTool('begin_generation', { description: 'Lock and freeze an explicitly requested PR; return its private explanation profile.',
     inputSchema: z.strictObject({ ...identity, intent: intentSchema }), annotations: { destructiveHint: false, idempotentHint: false } },
   async ({ repository, pr, intent }, context) => {
-    const started = await runtime.begin(repository, pr, intent, context.mcpReq.signal);
-    try { context.mcpReq.signal.throwIfAborted(); return reply(started); }
-    catch (error) { await runtime.cancel(started.session); throw error; }
+    const signal = context.mcpReq.signal;
+    const started = await runtime.begin(repository, pr, intent, signal);
+    let cleanup: Promise<void> | undefined;
+    const abandon = () => cleanup ??= runtime.cancel(started.session);
+    // The SDK can still cancel while the response waits for transport backpressure.
+    signal.addEventListener('abort', () => { void abandon().catch((error: Error) => server.server.onerror?.(error)); }, { once: true });
+    try { signal.throwIfAborted(); return reply(started); }
+    catch (error) { await abandon(); throw error; }
   });
   server.registerTool('paths', { description: 'Page pinned Git tree entries to find existing source context. No working-tree reads.',
     inputSchema: z.strictObject({ ...evidence, ...paging, prefix: relativePath.optional() }), annotations: readOnly },

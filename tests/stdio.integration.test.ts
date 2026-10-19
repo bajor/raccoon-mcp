@@ -12,10 +12,17 @@ import type { Runtime } from '../src/runtime.js';
 import { commit } from './git-fixture.js';
 import { publicationGate, runtimeFixture } from './runtime-fixture.js';
 
-async function wire(runtime: Runtime) {
+async function wire(runtime: Runtime, beforeReply: () => Promise<void> = async () => {}) {
   const server = createServer(runtime);
   const client = new Client({ name: 'raccoon-wire-test', version: '1' });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  const send = serverTransport.send.bind(serverTransport);
+  serverTransport.send = async (...args) => {
+    const message = args[0];
+    const result = 'result' in message ? message.result : undefined;
+    if (result && typeof result === 'object' && 'content' in result) await beforeReply();
+    await send(...args);
+  };
   await server.connect(serverTransport); await client.connect(clientTransport);
   return { client, close: async () => { await client.close(); await server.close(); } };
 }
@@ -91,4 +98,24 @@ test('MCP cancellation during begin releases the abandoned session', async (cont
     const next = await acquireGenerationLock(options.stateDirectory, source.repository, 1);
     await next.release();
   } finally { gate.release(); await settled; await close(); }
+});
+
+test('begin cancellation under response backpressure releases its session', { timeout: 10_000 }, async (context) => {
+  const { runtime, source, options } = await runtimeFixture(context);
+  const gate = publicationGate();
+  let cleaned!: () => void;
+  const cancelled = new Promise<void>((resolve) => { cleaned = resolve; });
+  const cancel = runtime.cancel.bind(runtime);
+  runtime.cancel = async (...args) => { await cancel(...args); cleaned(); };
+  const { client, close } = await wire(runtime, gate.beforeCommit);
+  const controller = new AbortController();
+  const request = client.callTool({ name: 'begin_generation', arguments: { repository: source.repository, pr: 1, intent: { mode: 'create' } } }, { signal: controller.signal });
+  try {
+    await gate.started;
+    controller.abort();
+    await assert.rejects(request);
+    await cancelled;
+    const next = await acquireGenerationLock(options.stateDirectory, source.repository, 1);
+    await next.release();
+  } finally { gate.release(); await close(); }
 });

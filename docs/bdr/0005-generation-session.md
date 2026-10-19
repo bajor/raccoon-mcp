@@ -82,3 +82,7 @@ Beginning a generation propagates MCP cancellation through setup. Cancellation
 before delivery and response-size rejection both release the new session instead
 of retaining a lock whose UUID never reached the client. Real MCP regressions
 cover a 12,000-file inventory and cancellation during blocked discovery.
+
+Cancellation cleanup remains armed while the SDK delivers a begin response, not
+only while constructing it. A transport-backpressure regression cancels after
+the handler returns but before delivery completes, then reacquires the PR lock.
