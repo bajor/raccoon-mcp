@@ -14,14 +14,18 @@ export async function packageFixture(): Promise<{ git: Git; source: Omit<Source,
   const source = { repository: 'bajor/example', pr: 1, title: 'Handler', branch: 'feature', baseSha: base, headSha: head };
   const snapshot = await freeze(reader, source);
   return { git: reader, source, draft: {
+    language: 'en', title: 'Understanding the handler', introduction: 'A request and its evolution.',
     historyNote: 'The selected ancestor shows the existing mechanism before this PR.',
     references: [{ id: 'current', commit: head, path: 'src/main.ts', startLine: 2, endLine: 2 },
       { id: 'older', commit: base, path: 'src/main.ts', startLine: 1, endLine: 1 }],
-    assignments: snapshot.changes.map((change) => ({ change: change.id, thread: 'handler' })),
-    threads: [{ id: 'handler', title: 'Handler', summary: 'Handler evolution.',
-      current: [{ text: 'The current handler extends the previous behavior.', evidence: 'fact', refs: ['current'] }],
-      stages: [{ commit: base, title: 'Existing handler', blocks: [{ text: 'The original mechanism.', evidence: 'fact', refs: ['older'] }] },
-        { commit: head, title: 'Change handler', blocks: [{ text: 'Extend that mechanism.', evidence: 'fact', refs: ['current'] }] }],
+    assignments: snapshot.changes.map((change) => ({ change: change.id, chapter: 'handler' })),
+    chapters: [{ id: 'handler', title: 'Handler', summary: 'Handler evolution.',
+      sections: [{ commit: head, title: 'How the handler works', blocks: [
+        { kind: 'prose', text: 'The current handler extends the previous behavior.', evidence: 'fact', refs: ['current'] },
+        { kind: 'code', reference: 'current' }, { kind: 'diagram', diagram: 'flow' },
+      ] }, { commit: base, title: 'The original mechanism', blocks: [
+        { kind: 'prose', text: 'The original mechanism.', evidence: 'fact', refs: ['older'] }, { kind: 'code', reference: 'older' },
+      ] }],
       diagrams: [{ id: 'flow', title: 'Handler flow', commit: head,
         nodes: [{ id: 'handler', label: 'Handler', refs: ['current'] }], edges: [] }],
     }],

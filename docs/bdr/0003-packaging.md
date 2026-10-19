@@ -1,7 +1,8 @@
 ---
 type: BDR
 description: Build a complete learning snapshot from agent references and exact Git objects, never agent-supplied code.
-status: Implemented
+status: Superseded
+superseded_by: "0007"
 ---
 
 # Package Git-backed explanations

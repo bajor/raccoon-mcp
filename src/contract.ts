@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const ARTIFACT_ROOT = 'raccoon-artifacts';
-export const CONTRACT_VERSION = 1;
+export const CONTRACT_VERSION = 2;
 // IDs become portable filenames, including on case-insensitive filesystems.
 const id = z.string().max(64).regex(/^[a-z0-9][a-z0-9_-]*$/)
   .refine((value) => !/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/.test(value), 'Reserved filename');
@@ -26,26 +26,30 @@ export const referenceSchema = z.strictObject({
   startLine: z.number().int().positive(), endLine: z.number().int().positive(),
 }).refine((ref) => ref.endLine >= ref.startLine, 'Reversed line range');
 
-export const blockSchema = z.strictObject({
-  text,
+export const proseSchema = z.strictObject({
+  kind: z.literal('prose'), text,
   evidence: z.enum(['fact', 'inference', 'unknown']),
   refs: z.array(id).min(1),
 });
+export const blockSchema = z.discriminatedUnion('kind', [proseSchema,
+  z.strictObject({ kind: z.literal('code'), reference: id }),
+  z.strictObject({ kind: z.literal('diagram'), diagram: id }),
+]);
 const diagramSchema = z.strictObject({
   id, title: text, commit: sha,
   nodes: z.array(z.strictObject({ id, label: text.max(160), refs: z.array(id).min(1) })).min(1).max(24),
-  edges: z.array(z.strictObject({ from: id, to: id, label: z.string().max(80) })),
+  edges: z.array(z.strictObject({ from: id, to: id, label: z.string().max(80) })).max(96),
 });
-const threadSchema = z.strictObject({
+const chapterSchema = z.strictObject({
   id, title: text.max(100), summary: text,
-  current: z.array(blockSchema).min(1),
-  stages: z.array(z.strictObject({ commit: sha, title: text, blocks: z.array(blockSchema).min(1) })).min(1),
+  sections: z.array(z.strictObject({ commit: sha, title: text, blocks: z.array(blockSchema).min(1) })).min(1),
   diagrams: z.array(diagramSchema).min(1),
 });
 const draftShape = z.strictObject({
+  language: z.literal('en'), title: text, introduction: text,
   references: z.array(referenceSchema).min(1),
-  threads: z.array(threadSchema).min(1),
-  assignments: z.array(z.strictObject({ change: id, thread: id })).min(1),
+  chapters: z.array(chapterSchema).min(1),
+  assignments: z.array(z.strictObject({ change: id, chapter: id })).min(1),
   historyNote: text,
 });
 export const draftSchema = draftShape.superRefine(checkDraft);
@@ -63,7 +67,8 @@ const artifactShape = z.strictObject({
     reference: id, blob: sha, sha256: digest, file: relativePath,
     bytes: z.number().int().nonnegative(), lines: z.number().int().nonnegative(),
   })).min(1),
-  diagrams: z.array(z.strictObject({ thread: id, diagram: id, file: relativePath, sha256: digest })).min(1),
+  diagrams: z.array(z.strictObject({ chapter: id, diagram: id, layout: z.enum(['landscape', 'portrait']),
+    file: relativePath, sha256: digest, width: z.number().positive(), height: z.number().positive() })).min(2),
 });
 export const artifactSchema = artifactShape.superRefine(checkArtifact);
 export const catalogSchema = z.strictObject({
@@ -100,11 +105,11 @@ function unique(values: string[], context: z.RefinementCtx, path: IssuePath, nam
 
 function checkDraft(draft: z.infer<typeof draftShape>, context: z.RefinementCtx): void {
   unique(draft.references.map((ref) => ref.id), context, ['references'], 'reference ID');
-  unique(draft.threads.map((thread) => thread.id), context, ['threads'], 'thread ID');
+  unique(draft.chapters.map((chapter) => chapter.id), context, ['chapters'], 'chapter ID');
   unique(draft.assignments.map((assignment) => assignment.change), context, ['assignments'], 'change assignment');
   const refs = new Set(draft.references.map((ref) => ref.id));
   const cited = new Set<string>();
-  const threads = new Set(draft.threads.map((thread) => thread.id));
+  const chapters = new Set(draft.chapters.map((chapter) => chapter.id));
   const checkRefs = (ids: string[], path: IssuePath) => {
     for (const ref of ids) {
       cited.add(ref);
@@ -112,16 +117,30 @@ function checkDraft(draft: z.infer<typeof draftShape>, context: z.RefinementCtx)
     }
   };
   for (const [index, assignment] of draft.assignments.entries()) {
-    if (!threads.has(assignment.thread)) issue(context, ['assignments', index, 'thread'], `Unknown thread ${assignment.thread}`);
+    if (!chapters.has(assignment.chapter)) issue(context, ['assignments', index, 'chapter'], `Unknown chapter ${assignment.chapter}`);
   }
-  for (const [index, thread] of draft.threads.entries()) {
-    const path: IssuePath = ['threads', index];
-    unique(thread.stages.map((stage) => stage.commit), context, path, `stage in ${thread.id}`);
-    unique(thread.diagrams.map((diagram) => diagram.id), context, path, `diagram in ${thread.id}`);
-    thread.current.forEach((block, i) => checkRefs(block.refs, [...path, 'current', i, 'refs']));
-    thread.stages.forEach((stage, i) => stage.blocks.forEach((block, j) => checkRefs(block.refs, [...path, 'stages', i, 'blocks', j, 'refs'])));
-    for (const [i, diagram] of thread.diagrams.entries()) {
+  for (const [index, chapter] of draft.chapters.entries()) {
+    const path: IssuePath = ['chapters', index];
+    unique(chapter.sections.slice(1).map((section) => section.commit), context, path, `historical section in ${chapter.id}`);
+    unique(chapter.diagrams.map((diagram) => diagram.id), context, path, `diagram in ${chapter.id}`);
+    const placed = new Set<string>();
+    const blocks = chapter.sections.flatMap((section) => section.blocks);
+    if (!blocks.some((block) => block.kind === 'code')) issue(context, path, 'Chapter needs inline code');
+    for (const [i, section] of chapter.sections.entries()) {
+      if (!section.blocks.some((block) => block.kind === 'prose')) issue(context, [...path, 'sections', i], 'Section needs prose');
+      for (const [j, block] of section.blocks.entries()) {
+        const blockPath = [...path, 'sections', i, 'blocks', j];
+        if (block.kind === 'prose') checkRefs(block.refs, blockPath);
+        if (block.kind === 'code') checkRefs([block.reference], blockPath);
+        if (block.kind === 'diagram') {
+          placed.add(block.diagram);
+          if (!chapter.diagrams.some((diagram) => diagram.id === block.diagram)) issue(context, blockPath, `Unknown inline diagram ${block.diagram}`);
+        }
+      }
+    }
+    for (const [i, diagram] of chapter.diagrams.entries()) {
       const diagramPath = [...path, 'diagrams', i];
+      if (!placed.has(diagram.id)) issue(context, diagramPath, `Unplaced diagram ${diagram.id}`);
       unique(diagram.nodes.map((node) => node.id), context, diagramPath, `node in ${diagram.id}`);
       const nodes = new Set(diagram.nodes.map((node) => node.id));
       diagram.nodes.forEach((node) => checkRefs(node.refs, diagramPath));
@@ -160,9 +179,10 @@ function checkAssets(artifact: Artifact, context: z.RefinementCtx): void {
     if (blobs.has(file.blob) && blobs.get(file.blob) !== file.sha256) issue(context, ['files', index], 'Inconsistent bytes for Git blob');
     blobs.set(file.blob, file.sha256);
   }
-  const expectedDiagrams = new Set(artifact.content.threads.flatMap((thread) => thread.diagrams.map((diagram) => `${thread.id}/${diagram.id}`)));
+  const expectedDiagrams = new Set(artifact.content.chapters.flatMap((chapter) => chapter.diagrams.flatMap((diagram) =>
+    ['landscape', 'portrait'].map((layout) => `${chapter.id}/${diagram.id}-${layout}`))));
   for (const [index, file] of artifact.diagrams.entries()) {
-    const key = `${file.thread}/${file.diagram}`;
+    const key = `${file.chapter}/${file.diagram}-${file.layout}`;
     if (!expectedDiagrams.delete(key)) issue(context, ['diagrams', index], `Extra diagram asset ${key}`);
     if (file.file !== `diagrams/${key}.svg`) issue(context, ['diagrams', index, 'file'], 'Noncanonical diagram asset path');
   }
@@ -182,19 +202,19 @@ function checkAssets(artifact: Artifact, context: z.RefinementCtx): void {
 
 function checkCoverage(artifact: Artifact, context: z.RefinementCtx): void {
   const changes = new Map(artifact.changes.map((change) => [change.id, change]));
-  const threads = new Map(artifact.content.threads.map((thread) => [thread.id, thread]));
+  const chapters = new Map(artifact.content.chapters.map((chapter) => [chapter.id, chapter]));
   for (const [index, assignment] of artifact.content.assignments.entries()) {
     const change = changes.get(assignment.change);
     if (!change) issue(context, ['content', 'assignments', index], `Unknown change ${assignment.change}`);
-    else if (!threads.get(assignment.thread)?.stages.some((stage) => stage.commit === change.commit)) {
-      issue(context, ['content', 'assignments', index], 'Assigned change has no stage in its primary thread');
+    else if (!chapters.get(assignment.chapter)?.sections.some((section) => section.commit === change.commit)) {
+      issue(context, ['content', 'assignments', index], 'Assigned change has no section in its primary chapter');
     }
     changes.delete(assignment.change);
   }
   if (changes.size) issue(context, ['content', 'assignments'], `Unassigned changes: ${[...changes.keys()].join(', ')}`);
-  for (const thread of artifact.content.threads) {
-    if (!artifact.content.assignments.some((assignment) => assignment.thread === thread.id)) {
-      issue(context, ['content', 'threads'], `Thread owns no changes: ${thread.id}`);
+  for (const chapter of artifact.content.chapters) {
+    if (!artifact.content.assignments.some((assignment) => assignment.chapter === chapter.id)) {
+      issue(context, ['content', 'chapters'], `Chapter owns no changes: ${chapter.id}`);
     }
   }
 }
@@ -225,16 +245,27 @@ function checkTimeline(artifact: Artifact, context: z.RefinementCtx): void {
   for (const [index, ref] of artifact.content.references.entries()) {
     if (!allowed.has(ref.commit)) issue(context, ['content', 'references', index, 'commit'], 'Unknown reference commit');
   }
-  for (const [index, thread] of artifact.content.threads.entries()) {
+  const refs = new Map(artifact.content.references.map((ref) => [ref.id, ref]));
+  for (const [index, chapter] of artifact.content.chapters.entries()) {
+    const path: IssuePath = ['content', 'chapters', index];
+    const first = chapter.sections[0]!;
+    if (first.commit !== artifact.source.headSha || !first.blocks.some((block) =>
+      block.kind === 'code' && refs.get(block.reference)?.commit === artifact.source.headSha)) {
+      issue(context, path, 'Chapter must start with inline code at the pinned head');
+    }
+    if (!first.blocks.some((block) => block.kind === 'diagram' && chapter.diagrams.some((diagram) =>
+      diagram.id === block.diagram && diagram.commit === artifact.source.headSha))) {
+      issue(context, path, 'Chapter must start with a diagram at the pinned head');
+    }
     let previous = -1;
-    for (const stage of thread.stages) {
-      const position = order.get(stage.commit);
-      if (position === undefined) issue(context, ['content', 'threads', index, 'stages'], `Unknown stage commit ${stage.commit}`);
-      else if (position <= previous) issue(context, ['content', 'threads', index, 'stages'], 'Stages must be in ancestor-first order');
+    for (const section of chapter.sections.slice(1)) {
+      const position = order.get(section.commit);
+      if (position === undefined) issue(context, path, `Unknown section commit ${section.commit}`);
+      else if (position <= previous) issue(context, path, 'Historical sections must be in ancestor-first order');
       previous = position ?? previous;
     }
-    for (const diagram of thread.diagrams) {
-      if (!allowed.has(diagram.commit)) issue(context, ['content', 'threads', index, 'diagrams'], 'Unknown diagram commit');
+    for (const diagram of chapter.diagrams) {
+      if (!allowed.has(diagram.commit)) issue(context, path, 'Unknown diagram commit');
     }
   }
 }

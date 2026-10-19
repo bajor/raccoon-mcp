@@ -35,22 +35,29 @@ export async function advance(fixture: Awaited<ReturnType<typeof publicationFixt
   fixture.source.headSha = commit(fixture.git.root, 'Artifact-only change');
   const draft = structuredClone(fixture.draft);
   draft.references.push({ ...draft.references[0]!, id: 'final', commit: fixture.source.headSha });
-  draft.threads[0]!.current[0]!.refs = ['final'];
-  draft.threads[0]!.diagrams[0]!.commit = fixture.source.headSha;
-  draft.threads[0]!.diagrams[0]!.nodes[0]!.refs = ['final'];
+  const chapter = draft.chapters[0]!;
+  const historical = structuredClone(chapter.sections[0]!);
+  historical.blocks = historical.blocks.filter((block) => block.kind !== 'diagram');
+  chapter.sections.push(historical);
+  chapter.sections[0]!.commit = fixture.source.headSha;
+  chapter.sections[0]!.blocks.find((block) => block.kind === 'prose')!.refs = ['final'];
+  chapter.sections[0]!.blocks.find((block) => block.kind === 'code')!.reference = 'final';
+  chapter.diagrams[0]!.commit = fixture.source.headSha;
+  chapter.diagrams[0]!.nodes[0]!.refs = ['final'];
   return buildArtifact(fixture.git, fixture.source, draft, Buffer.from('private'));
 }
 
 export async function previousFixture(context: TestContext) {
   const fixture = await publicationFixture(context);
   const oldDraft = structuredClone(fixture.draft);
-  oldDraft.threads[0]!.diagrams[0]!.id = 'obsolete';
+  oldDraft.chapters[0]!.diagrams[0]!.id = 'obsolete';
+  oldDraft.chapters[0]!.sections[0]!.blocks.find((block) => block.kind === 'diagram')!.diagram = 'obsolete';
   const previous = await buildArtifact(fixture.git, fixture.source, oldDraft, Buffer.from('private'));
   for (const [path, bytes] of previous.assets) {
     const destination = join(fixture.git.root, 'raccoon-artifacts/pr-1', path);
     await mkdir(dirname(destination), { recursive: true }); await writeFile(destination, bytes);
   }
-  await writeFile(join(fixture.git.root, 'raccoon-artifacts/catalog.json'), JSON.stringify({ version: 1,
+  await writeFile(join(fixture.git.root, 'raccoon-artifacts/catalog.json'), JSON.stringify({ version: 2,
     repository: fixture.source.repository, artifacts: [{ pr: 1, manifest: 'pr-1/manifest.json' }, { pr: 2, manifest: 'pr-2/manifest.json' }] }));
   await writeFile(join(fixture.git.root, 'raccoon-artifacts/pr-1/notes.md'), 'Keep my notes.');
   return { ...fixture, pkg: await advance(fixture), previous };

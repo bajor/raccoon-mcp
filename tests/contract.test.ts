@@ -14,12 +14,16 @@ test('accepts a complete packaged artifact through the exported schema', () => {
 });
 
 const brokenDrafts: Array<[string, (input: ReturnType<typeof draft>) => void]> = [
-  ['dangling narrative reference', (input) => { input.threads[0]!.current[0]!.refs = ['missing']; }],
+  ['dangling narrative reference', (input) => { input.chapters[0]!.sections[0]!.blocks.find((block) => block.kind === 'prose')!.refs = ['missing']; }],
+  ['dangling code placement', (input) => { input.chapters[0]!.sections[0]!.blocks.push({ kind: 'code', reference: 'missing' }); }],
+  ['dangling diagram placement', (input) => { input.chapters[0]!.sections[0]!.blocks.push({ kind: 'diagram', diagram: 'missing' }); }],
+  ['unplaced diagram', (input) => { input.chapters[0]!.sections[0]!.blocks.pop(); }],
+  ['unexplained section', (input) => { input.chapters[0]!.sections[0]!.blocks.shift(); }],
   ['duplicate change ownership', (input) => { input.assignments.push(input.assignments[0]!); }],
-  ['unknown primary thread', (input) => { input.assignments[0]!.thread = 'missing'; }],
-  ['dangling diagram endpoint', (input) => { input.threads[0]!.diagrams[0]!.edges.push({ from: 'handler', to: 'missing', label: '' }); }],
+  ['unknown primary chapter', (input) => { input.assignments[0]!.chapter = 'missing'; }],
+  ['dangling diagram endpoint', (input) => { input.chapters[0]!.diagrams[0]!.edges.push({ from: 'handler', to: 'missing', label: '' }); }],
   ['reversed source range', (input) => { input.references[0]!.startLine = 3; }],
-  ['case-ambiguous filename ID', (input) => { input.threads[0]!.id = 'Flow'; input.assignments[0]!.thread = 'Flow'; }],
+  ['case-ambiguous filename ID', (input) => { input.chapters[0]!.id = 'Flow'; input.assignments[0]!.chapter = 'Flow'; }],
 ];
 for (const [name, breakInput] of brokenDrafts) {
   test(`rejects ${name}`, () => {
@@ -38,14 +42,15 @@ test('rejects an artifact whose source file does not contain the referenced line
 test('rejects an artifact missing a required diagram asset', () => {
   const input = artifact();
   input.diagrams[0]!.diagram = 'other';
-  input.diagrams[0]!.file = 'diagrams/flow/other.svg';
-  assert.throws(() => validateArtifact(input), /Missing diagram flow\/request/);
+  input.diagrams[0]!.file = 'diagrams/flow/other-landscape.svg';
+  assert.throws(() => validateArtifact(input), /Missing diagram flow\/request-landscape/);
 });
 
 test('rejects an artifact whose timeline points outside its commit list', () => {
   const input = artifact();
   input.commits[0]!.sha = 'c'.repeat(40);
-  assert.throws(() => validateArtifact(input), /Unknown stage commit/);
+  input.content.chapters[0]!.sections.push(structuredClone(input.content.chapters[0]!.sections[0]!));
+  assert.throws(() => validateArtifact(input), /Unknown section commit/);
 });
 
 test('rejects source asset aliases outside the content-addressed file store', () => {
@@ -55,18 +60,20 @@ test('rejects source asset aliases outside the content-addressed file store', ()
 });
 
 const brokenArtifacts: Array<[string, (input: ReturnType<typeof artifact>) => void, RegExp]> = [
-  ['orphan diagram asset', (input) => { input.diagrams.push({ ...input.diagrams[0]!, diagram: 'extra', file: 'diagrams/flow/extra.svg' }); }, /Extra diagram/],
+  ['orphan diagram asset', (input) => { input.diagrams.push({ ...input.diagrams[0]!, diagram: 'extra', file: 'diagrams/flow/extra-landscape.svg' }); }, /Extra diagram/],
+  ['missing portrait layout', (input) => { input.diagrams[1] = { ...input.diagrams[0]! }; }, /Missing diagram flow\/request-portrait/],
   ['unknown reference revision', (input) => { input.content.references[0]!.commit = 'd'.repeat(40); }, /Unknown reference commit/],
-  ['unknown diagram revision', (input) => { input.content.threads[0]!.diagrams[0]!.commit = 'd'.repeat(40); }, /Unknown diagram commit/],
+  ['unknown diagram revision', (input) => { input.content.chapters[0]!.diagrams[0]!.commit = 'd'.repeat(40); }, /Unknown diagram commit/],
   ['unexplained PR change', (input) => { input.changes.push({ ...input.changes[0]!, id: 'c2', path: 'src/other.ts' }); }, /Unassigned changes/],
-  ['duplicate changed path', (input) => { input.changes.push({ ...input.changes[0]!, id: 'c2' }); input.content.assignments.push({ change: 'c2', thread: 'flow' }); }, /Duplicate changed path/],
+  ['duplicate changed path', (input) => { input.changes.push({ ...input.changes[0]!, id: 'c2' }); input.content.assignments.push({ change: 'c2', chapter: 'flow' }); }, /Duplicate changed path/],
   ['invented change assignment', (input) => { input.content.assignments[0]!.change = 'invented'; }, /Unknown change/],
-  ['change assigned outside its commit stage', (input) => { input.content.threads[0]!.stages[0]!.commit = 'd'.repeat(40); }, /Assigned change has no stage/],
+  ['change assigned outside its commit section', (input) => { input.content.chapters[0]!.sections[0]!.commit = 'd'.repeat(40); }, /Assigned change has no section/],
+  ['chapter starting in the past', (input) => { input.content.chapters[0]!.sections[0]!.commit = input.source.baseSha; }, /Chapter must start/],
   ['non-PR source change', (input) => { input.commits[0]!.phase = 'before-pr'; }, /Change must belong to a PR commit/],
   ['inconsistent deduplicated file metadata', (input) => {
     input.content.references.push({ ...input.content.references[0]!, id: 'r2', endLine: 900 });
     input.files.push({ ...input.files[0]!, reference: 'r2', lines: 900 });
-    input.content.threads[0]!.current[0]!.refs.push('r2');
+    input.content.chapters[0]!.sections[0]!.blocks.find((block) => block.kind === 'prose')!.refs.push('r2');
   }, /Inconsistent metadata/],
 ];
 for (const [name, breakInput, message] of brokenArtifacts) {
@@ -77,12 +84,13 @@ for (const [name, breakInput, message] of brokenArtifacts) {
   });
 }
 
-test('rejects a reversed thread timeline', () => {
+test('rejects reversed historical sections after the current mechanism', () => {
   const input = artifact();
   const earlier = input.source.baseSha;
   input.commits.unshift({ sha: earlier, subject: 'Earlier context', parents: [], phase: 'before-pr' });
-  input.content.threads[0]!.stages.push({ ...input.content.threads[0]!.stages[0]!, commit: earlier });
-  assert.throws(() => validateArtifact(input), /Stages must be in ancestor-first order/);
+  const section = input.content.chapters[0]!.sections[0]!;
+  input.content.chapters[0]!.sections.push(structuredClone(section), { ...structuredClone(section), commit: earlier });
+  assert.throws(() => validateArtifact(input), /Historical sections must be in ancestor-first order/);
 });
 
 test('rejects a base revision classified as part of the PR', () => {
@@ -90,14 +98,18 @@ test('rejects a base revision classified as part of the PR', () => {
   assert.throws(() => validateArtifact(input), /Base and merge base cannot be PR commits/);
 });
 
-test('represents an artifact-only PR head without inventing an explanation stage', () => {
+test('represents an artifact-only head without inventing a source change', () => {
   const input = artifact(); input.source.headSha = 'd'.repeat(40);
   input.excludedCommits.push({ sha: input.source.headSha, reason: 'generated-only' });
+  input.content.chapters[0]!.sections.push(structuredClone(input.content.chapters[0]!.sections[0]!));
+  input.content.chapters[0]!.sections[0]!.commit = input.source.headSha;
+  input.content.references[0]!.commit = input.source.headSha;
+  input.content.chapters[0]!.diagrams[0]!.commit = input.source.headSha;
   assert.deepEqual(validateArtifact(input), input);
 });
 
 test('accepts an authoritative empty repository catalog', () => {
-  assert.deepEqual(catalogSchema.parse({ version: 1, repository: 'bajor/example', artifacts: [] }).artifacts, []);
+  assert.deepEqual(catalogSchema.parse({ version: 2, repository: 'bajor/example', artifacts: [] }).artifacts, []);
 });
 
 for (const [name, artifacts, message] of [
@@ -105,10 +117,14 @@ for (const [name, artifacts, message] of [
   ['manifest alias', [{ pr: 1, manifest: 'elsewhere.json' }], /Noncanonical manifest/],
 ] as const) {
   test(`rejects catalog ${name}`, () => {
-    assert.throws(() => catalogSchema.parse({ version: 1, repository: 'bajor/example', artifacts }), message);
+    assert.throws(() => catalogSchema.parse({ version: 2, repository: 'bajor/example', artifacts }), message);
   });
 }
 
 test('rejects a traversal-shaped repository identity', () => {
-  assert.throws(() => catalogSchema.parse({ version: 1, repository: '../..', artifacts: [] }));
+  assert.throws(() => catalogSchema.parse({ version: 2, repository: '../..', artifacts: [] }));
+});
+
+test('rejects the previous package version rather than adapting it', () => {
+  assert.throws(() => artifactSchema.parse({ ...artifact(), version: 1 }));
 });

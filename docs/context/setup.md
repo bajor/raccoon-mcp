@@ -76,7 +76,8 @@ Adding configuration alone is not proof of a successful connection.
    client. In the [reader](https://bajor.github.io/raccoon-ios/), import the local
    `raccoon-artifacts/` folder. Re-select the folder after synchronization or a
    branch change; imports are local snapshots, not live folder handles.
-4. Read the final-state thread first, then optional historical stages. Cached
+4. Open the English article, choose text size and press Read. History, Git excerpts
+   and diagrams appear inline in each chapter. Cached
    imports support offline reading, but the browser can evict local data.
 5. For questions, use ChatGPT with repository context separately. Keep notes in
    Freeform or another notes app; neither feature is embedded in the reader.

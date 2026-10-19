@@ -6,3 +6,4 @@
 - [Publish a complete generation](/bdr/0004-publication.md)
 - [Generation sessions and MCP tools](/bdr/0005-generation-session.md)
 - [Host-agent explanation workflow](/bdr/0006-generation-skill.md)
+- [Complete article generation](/bdr/0007-article.md)

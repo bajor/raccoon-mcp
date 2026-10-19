@@ -1,7 +1,8 @@
 ---
 type: PRD
 description: A self-contained learning artifact organized around functional threads.
-status: Accepted
+status: Superseded
+superseded_by: "0002"
 ---
 
 # Understand agent-written changes
