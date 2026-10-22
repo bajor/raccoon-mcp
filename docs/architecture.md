@@ -87,6 +87,8 @@ operator-configured source root, frozen inventory, private profile and lock to o
 session. `src/server.ts` registers validated MCP tools; `src/main.ts` starts the
 official SDK's stdio serving entry for both protocol eras. The lifecycle and
 shutdown sequence live in [generation sessions](/bdr/0005-generation-session.md).
+Source reads expose a focus and a bounded, numbered context range for reuse as
+an inline reference; see [code context](/bdr/0008-code-context.md).
 The maintained Apache-2.0/MIT SDK packages own framing and negotiation rather than
 a handwritten protocol. The server package depends only on core and existing Zod;
 the official client is a development-only wire-test dependency.

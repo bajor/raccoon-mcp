@@ -63,6 +63,40 @@ test('MCP file pages retain actual Git line numbers', async (context) => {
   } finally { await close(); }
 });
 
+for (const startLine of [1, 2, 3]) test(`MCP context preserves the focus at line ${startLine}`, async (context) => {
+  const { runtime, source } = await runtimeFixture(context);
+  const { session } = await runtime.begin(source.repository, 1, { mode: 'create' });
+  const { client, close } = await wire(runtime);
+  try {
+    const result = await client.callTool({ name: 'read_file', arguments: {
+      session, revision: source.headSha, path: 'src/main.ts', startLine, count: 1, contextLines: 2,
+    } });
+    const content = result.content[0]!;
+    const { focus, reference, lines } = JSON.parse('text' in content ? content.text : '');
+    assert.deepEqual({ focus, reference, lines }, {
+      focus: { startLine, endLine: startLine },
+      reference: { commit: source.headSha, path: 'src/main.ts', startLine: 1, endLine: 3 },
+      lines: [{ line: 1, text: 'one' }, { line: 2, text: 'changed' }, { line: 3, text: 'three' }],
+    });
+  } finally { await close(); }
+});
+
+test('MCP empty-file reads do not invent a code reference', async (context) => {
+  const { runtime, source, git } = await runtimeFixture(context);
+  await writeFile(join(git.root, 'empty.txt'), '');
+  source.headSha = commit(git.root, 'Add empty file');
+  const { session } = await runtime.begin(source.repository, 1, { mode: 'create' });
+  const { client, close } = await wire(runtime);
+  try {
+    const result = await client.callTool({ name: 'read_file', arguments: {
+      session, revision: source.headSha, path: 'empty.txt', contextLines: 8,
+    } });
+    const content = result.content[0]!;
+    const { focus, reference, lines } = JSON.parse('text' in content ? content.text : '');
+    assert.deepEqual({ focus, reference, lines }, { focus: null, reference: null, lines: [] });
+  } finally { await close(); }
+});
+
 test('an oversized begin response releases its inaccessible session', async (context) => {
   const { runtime, source, git, options } = await runtimeFixture(context);
   const count = 12_000;

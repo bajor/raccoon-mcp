@@ -41,16 +41,20 @@ export function createServer(runtime: Runtime): McpServer {
     const entries = await git.entries(revision, prefix);
     return reply({ entries: entries.slice(skip, skip + count), nextSkip: skip + count < entries.length ? skip + count : null });
   });
-  server.registerTool('read_file', { description: 'Read numbered historical source lines. Packaging later includes the complete Git file.',
+  server.registerTool('read_file', { description: 'Read a numbered Git focus with optional surrounding context. Reuse the returned reference range for inline code; packaging includes the full file.',
     inputSchema: z.strictObject({ ...evidence, path: relativePath, startLine: z.number().int().positive().safe().default(1),
-      count: z.number().int().min(1).max(2000).default(200) }), annotations: readOnly },
-  async ({ session, revision, path, startLine, count }) => {
+      count: z.number().int().min(1).max(2000).default(200), contextLines: z.number().int().min(0).max(40).default(0) }), annotations: readOnly },
+  async ({ session, revision, path, startLine, count, contextLines }) => {
     const { git } = await runtime.evidence(session, revision);
     const file = await git.file(revision, path);
     if (startLine > Math.max(1, file.lines)) throw new Error('Source page begins beyond the complete file');
-    const lines = file.lines ? file.text.replace(/\n$/, '').split('\n').slice(startLine - 1, startLine - 1 + count) : [];
+    const first = Math.max(1, startLine - contextLines);
+    const last = Math.min(file.lines, startLine + count - 1 + contextLines);
+    const lines = file.lines ? file.text.replace(/\n$/, '').split('\n').slice(first - 1, last) : [];
     return reply({ blob: file.blob, bytes: file.data.length, totalLines: file.lines,
-      lines: lines.map((text, index) => ({ line: startLine + index, text })) });
+      focus: file.lines ? { startLine, endLine: Math.min(file.lines, startLine + count - 1) } : null,
+      reference: file.lines ? { commit: revision, path, startLine: first, endLine: last } : null,
+      lines: lines.map((text, index) => ({ line: first + index, text })) });
   });
   server.registerTool('history', { description: 'Page real commit history, following a path across renames. No total-history cutoff.',
     inputSchema: z.strictObject({ ...evidence, ...paging, path: relativePath.optional() }), annotations: readOnly },
