@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import { draftSchema, type Draft } from './contract.js';
+import { codeReferences, draftSchema, type Draft } from './contract.js';
 
 export const AUTHORING_LIMITS = {
   introduction: 60, historyNote: 80, summary: 30, caption: 60, section: 120,
@@ -20,8 +20,8 @@ function sectionPolicy(section: Draft['chapters'][number]['sections'][number], p
   if (section.blocks[0]?.kind === 'prose') problem(context, path, 'Open with code or a diagram, not prose');
   const captions = section.blocks.filter((block) => block.kind === 'prose');
   const visuals = new Set(section.blocks.flatMap((block) => block.kind === 'prose' ? [] :
-    [block.kind === 'code' ? `code:${keys.get(block.reference)}` : `diagram:${block.diagram}`]));
-  if (!section.blocks.some((block) => block.kind === 'code')) problem(context, path, 'Every section needs inline code');
+    [block.kind === 'diagram' ? `diagram:${block.diagram}` : `code:${codeReferences(block).map((ref) => keys.get(ref)).join(':')}`]));
+  if (!section.blocks.some((block) => codeReferences(block).length)) problem(context, path, 'Every section needs inline code');
   if (captions.length > visuals.size) problem(context, path, 'Prose blocks cannot outnumber distinct visual placements');
   for (const [index, block] of section.blocks.entries()) {
     if (block.kind === 'prose') limit(block.text, AUTHORING_LIMITS.caption, context, [...path, 'blocks', index, 'text']);
@@ -48,8 +48,8 @@ export const authoringDraftSchema = draftSchema.superRefine((draft, context) => 
     const head = chapter.sections[0];
     if (!head) continue;
     if (head.blocks[0]?.kind !== 'diagram') problem(context, path, 'Open the chapter with a diagram');
-    const code = new Set(head.blocks.flatMap((block) => block.kind === 'code' && refs.get(block.reference)?.commit === head.commit ?
-      [keys.get(block.reference)] : []));
+    const code = new Set(head.blocks.flatMap((block) => codeReferences(block)
+      .filter((ref) => refs.get(ref)?.commit === head.commit).map((ref) => keys.get(ref))));
     if (code.size < 2) problem(context, path, 'Show two distinct current code ranges: mechanism and surrounding context');
     chapter.sections.forEach((section, i) => sectionPolicy(section, [...path, 'sections', i], keys, context));
     for (const [i, diagram] of chapter.diagrams.entries()) {

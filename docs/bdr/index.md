@@ -9,3 +9,4 @@
 - [Complete article generation](/bdr/0007-article.md)
 - [Numbered code context](/bdr/0008-code-context.md)
 - [Visual-first publication](/bdr/0009-visual-first-authoring.md)
+- [Git comparisons](/bdr/0010-comparisons.md)
