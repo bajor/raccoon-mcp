@@ -1,7 +1,8 @@
 ---
 type: PRD
 description: English articles with functional chapters, inline evidence and printable diagrams.
-status: Accepted
+status: Superseded
+superseded_by: "0003"
 supersedes: "0001"
 ---
 
