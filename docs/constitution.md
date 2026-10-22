@@ -15,6 +15,10 @@ represent those threads. Code and diagrams appear inline; history belongs in
 chapter prose. The user removed backward compatibility from scope. Version 2
 replaces the current/stage workspace model rather than adding another reader path.
 
+Amendment, 2026-10-22: diagrams and exact code, including surrounding code, lead
+the explanation. Enforce concise captions at publication, without changing the
+portable version-2 layout or invalidating existing reader imports.
+
 A snapshot pins a PR's Git revisions. Each thread explains the resulting
 mechanism, relevant existing code, every relevant PR commit, and selected older
 history. Code references identify a full commit hash, path and inclusive 1-based

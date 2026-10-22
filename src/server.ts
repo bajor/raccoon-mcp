@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/server';
 import { z } from 'zod';
-import { draftSchema, relativePath, repository, sha } from './contract.js';
+import { relativePath, repository, sha } from './contract.js';
+import { authoringDraftSchema } from './authoring.js';
 import { intentSchema, Runtime } from './runtime.js';
 
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
@@ -65,8 +66,8 @@ export function createServer(runtime: Runtime): McpServer {
   server.registerTool('diff', { description: 'Read a pinned commit diff without external drivers, text converters or source scripts.',
     inputSchema: z.strictObject({ ...evidence, paths: z.array(relativePath).default([]) }), annotations: readOnly },
   async ({ session, revision, paths }) => reply({ diff: await (await runtime.evidence(session, revision)).git.diff(revision, paths) }));
-  server.registerTool('publish_generation', { description: 'Validate and publish one complete explanation on the locked PR branch. Never retry automatically.',
-    inputSchema: z.strictObject({ session: z.uuid(), draft: draftSchema }), annotations: { destructiveHint: true, idempotentHint: false } },
+  server.registerTool('publish_generation', { description: 'Validate visual-first chapters, concise captions and surrounding-code excerpts; publish on the locked PR branch. Never retry automatically.',
+    inputSchema: z.strictObject({ session: z.uuid(), draft: authoringDraftSchema }), annotations: { destructiveHint: true, idempotentHint: false } },
   async ({ session, draft }) => reply(await runtime.finish(session, draft)));
   server.registerTool('cancel_generation', { description: 'End a non-finishing generation and release only its private lock. No artifact changes.',
     inputSchema: z.strictObject({ session: z.uuid() }), annotations: { destructiveHint: false } }, async ({ session }) => {

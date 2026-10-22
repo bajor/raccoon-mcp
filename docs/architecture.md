@@ -66,6 +66,9 @@ file assets, source metadata and profile hashing. `src/diagram.ts` turns the bou
 graph contract into compact, escaped portrait and landscape SVG using Dagre.
 Viewport dimensions accompany checksums for automatic fitting. Neither writes
 into the analyzed repository.
+`src/authoring.ts` applies the [visual-first publication policy](/bdr/0009-visual-first-authoring.md)
+before packaging and at the MCP input boundary. This policy is separate from the
+portable format so existing reader imports keep their version-2 meaning.
 Contract node IDs map to opaque layout IDs, keeping graphlib object keys outside
 the input boundary. Dagre owns self-loop, disconnected-component and parallel-edge
 routing. Version 2.0.4 is pinned because 3.1.1 failed accepted geometry regressions.

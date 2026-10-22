@@ -13,7 +13,8 @@ test('complete historical assets come from Git rather than dirty source', async 
   const result = await buildArtifact(git, source, draft, Buffer.from('private profile'));
   const files = result.manifest.files;
   assert.deepEqual(files.map((file) => ({ content: result.assets.get(file.file)!.toString(), bytes: file.bytes, lines: file.lines })),
-    [{ content: currentText, bytes: Buffer.byteLength(currentText), lines: 3 }, { content: 'one\ntwo\n', bytes: 8, lines: 2 }]);
+    [{ content: currentText, bytes: Buffer.byteLength(currentText), lines: 3 }, { content: 'one\ntwo\n', bytes: 8, lines: 2 },
+      { content: currentText, bytes: Buffer.byteLength(currentText), lines: 3 }]);
 });
 
 test('selected history precedes PR commits without changing article reading order', async (context) => {
@@ -28,6 +29,7 @@ test('selected history precedes PR commits without changing article reading orde
 
 for (const [name, alter, message] of [
   ['out-of-range reference', (draft: Awaited<ReturnType<typeof packageFixture>>['draft']) => { draft.references[0]!.endLine = 50; }, /exceeds the real file/],
+  ['text-heavy draft', (draft: Awaited<ReturnType<typeof packageFixture>>['draft']) => { draft.introduction = Array(61).fill('word').join(' '); }, /at most 60 words/],
   ['unowned source change', (draft: Awaited<ReturnType<typeof packageFixture>>['draft']) => { draft.assignments[0]!.change = 'invented'; }, /Unknown change|Unassigned changes/],
   ['future prose evidence', (draft: Awaited<ReturnType<typeof packageFixture>>['draft']) => {
     draft.chapters[0]!.sections[1]!.blocks.find((block) => block.kind === 'prose')!.refs = ['current', 'older'];

@@ -26,7 +26,7 @@ test('rejected regeneration setup releases its PR lock', async (context) => {
 test('a rejected complete draft remains correctable in the same session', async (context) => {
   const { runtime, remote, source, draft } = await runtimeFixture(context);
   const started = await runtime.begin(source.repository, 1, { mode: 'create' });
-  const invalid = structuredClone(draft); invalid.references[0]!.endLine = 99;
+  const invalid = structuredClone(draft); invalid.references[0]!.endLine = 50;
   await assert.rejects(runtime.finish(started.session, invalid), /exceeds the real file/);
   await runtime.finish(started.session, draft);
   assert.equal(remote.mutations.length, 1);

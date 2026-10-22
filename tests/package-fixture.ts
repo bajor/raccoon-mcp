@@ -17,14 +17,16 @@ export async function packageFixture(): Promise<{ git: Git; source: Omit<Source,
     language: 'en', title: 'Understanding the handler', introduction: 'A request and its evolution.',
     historyNote: 'The selected ancestor shows the existing mechanism before this PR.',
     references: [{ id: 'current', commit: head, path: 'src/main.ts', startLine: 2, endLine: 2 },
-      { id: 'older', commit: base, path: 'src/main.ts', startLine: 1, endLine: 1 }],
+      { id: 'older', commit: base, path: 'src/main.ts', startLine: 1, endLine: 1 },
+      { id: 'context', commit: head, path: 'src/main.ts', startLine: 1, endLine: 1 }],
     assignments: snapshot.changes.map((change) => ({ change: change.id, chapter: 'handler' })),
     chapters: [{ id: 'handler', title: 'Handler', summary: 'Handler evolution.',
-      sections: [{ commit: head, title: 'How the handler works', blocks: [
-        { kind: 'prose', text: 'The current handler extends the previous behavior.', evidence: 'fact', refs: ['current'] },
-        { kind: 'code', reference: 'current' }, { kind: 'diagram', diagram: 'flow' },
-      ] }, { commit: base, title: 'The original mechanism', blocks: [
-        { kind: 'prose', text: 'The original mechanism.', evidence: 'fact', refs: ['older'] }, { kind: 'code', reference: 'older' },
+       sections: [{ commit: head, title: 'How the handler works', blocks: [
+         { kind: 'diagram', diagram: 'flow' },
+         { kind: 'prose', text: 'The current handler extends the previous behavior.', evidence: 'fact', refs: ['current'] },
+         { kind: 'code', reference: 'current' }, { kind: 'code', reference: 'context' },
+       ] }, { commit: base, title: 'The original mechanism', blocks: [
+         { kind: 'code', reference: 'older' }, { kind: 'prose', text: 'The original mechanism.', evidence: 'fact', refs: ['older'] },
       ] }],
       diagrams: [{ id: 'flow', title: 'Handler flow', commit: head,
         nodes: [{ id: 'handler', label: 'Handler', refs: ['current'] }], edges: [] }],

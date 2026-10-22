@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { artifactSchema, draftSchema, CONTRACT_VERSION, type Artifact, type Commit, type Draft, type Source } from './contract.js';
+import { artifactSchema, CONTRACT_VERSION, type Artifact, type Commit, type Draft, type Source } from './contract.js';
+import { authoringDraftSchema } from './authoring.js';
 import { renderDiagram } from './diagram.js';
 import { Git } from './git.js';
 import { freeze, type Snapshot } from './snapshot.js';
@@ -54,7 +55,7 @@ async function checkRevisions(git: Git, draft: Draft): Promise<void> {
 export async function buildArtifact(git: Git, source: Omit<Source, 'mergeBaseSha'>, input: unknown,
   privateProfile: Uint8Array): Promise<Package> {
   const snapshot = await freeze(git, source);
-  const content = draftSchema.parse(input);
+  const content = authoringDraftSchema.parse(input);
   const commits = await timeline(git, snapshot, content);
   await checkRevisions(git, content);
   const assets = new Map<string, Buffer>();

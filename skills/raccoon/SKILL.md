@@ -78,6 +78,15 @@ head is not permission to overwrite a newly observed generation.
 
 ## Complete draft
 
+Publication enforces a visual-first policy. Open each chapter with a diagram and
+two distinct code ranges at its current revision: the mechanism and surrounding
+caller/type/configuration context. Open every historical section with code or a
+diagram and include code. Prose blocks cannot outnumber distinct visual placements.
+Word limits: introduction 60, history note 80, summary 30, caption 60, section
+captions combined 120. Code ranges have at most 80 lines; graphs at most 8 nodes
+and 12 edges. Use `read_file` with `contextLines` to inspect surrounding source.
+These publication rules take priority over the longer narrative guidance below.
+
 Use the version-2 schema advertised by `publish_generation`. Top-level fields are
 `language: "en"`, `title`, `introduction`, `references`, `chapters`, `assignments`
 and `historyNote`. Older packages are unsupported; do not invent a migration or
