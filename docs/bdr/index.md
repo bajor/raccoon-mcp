@@ -8,3 +8,4 @@
 - [Host-agent explanation workflow](/bdr/0006-generation-skill.md)
 - [Complete article generation](/bdr/0007-article.md)
 - [Numbered code context](/bdr/0008-code-context.md)
+- [Visual-first publication](/bdr/0009-visual-first-authoring.md)

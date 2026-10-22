@@ -35,13 +35,17 @@ export async function advance(fixture: Awaited<ReturnType<typeof publicationFixt
   fixture.source.headSha = commit(fixture.git.root, 'Artifact-only change');
   const draft = structuredClone(fixture.draft);
   draft.references.push({ ...draft.references[0]!, id: 'final', commit: fixture.source.headSha });
+  draft.references.push({ ...draft.references[2]!, id: 'final-context', commit: fixture.source.headSha });
   const chapter = draft.chapters[0]!;
   const historical = structuredClone(chapter.sections[0]!);
-  historical.blocks = historical.blocks.filter((block) => block.kind !== 'diagram');
+  historical.blocks = [...historical.blocks.filter((block) => block.kind === 'code'),
+    ...historical.blocks.filter((block) => block.kind === 'prose')];
   chapter.sections.push(historical);
   chapter.sections[0]!.commit = fixture.source.headSha;
   chapter.sections[0]!.blocks.find((block) => block.kind === 'prose')!.refs = ['final'];
-  chapter.sections[0]!.blocks.find((block) => block.kind === 'code')!.reference = 'final';
+  for (const block of chapter.sections[0]!.blocks) {
+    if (block.kind === 'code') block.reference = block.reference === 'current' ? 'final' : 'final-context';
+  }
   chapter.diagrams[0]!.commit = fixture.source.headSha;
   chapter.diagrams[0]!.nodes[0]!.refs = ['final'];
   return buildArtifact(fixture.git, fixture.source, draft, Buffer.from('private'));
