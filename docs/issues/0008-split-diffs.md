@@ -1,7 +1,7 @@
 ---
 type: Issue
 description: Deliver explicit comparison evidence, library rendering and generation enforcement.
-status: In progress
+status: Implemented
 ---
 
 # Deliver split diffs

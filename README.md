@@ -5,16 +5,18 @@ understanding a PR, not reviewing, editing or merging it.
 
 The agent using the supplied skill writes explanations and code references. The
 MCP server reads Git objects, validates references, copies real files, and builds
-one complete English explanation per PR: diagram-first chapters, exact code with
-surrounding context, and short concrete captions. Publication rejects text-heavy
+one complete English explanation per PR: diagram-first chapters, side-by-side
+changes, exact code with surrounding context, and short concrete captions. Publication rejects text-heavy
 drafts. It does not call a model or require an AI API key.
 
 Artifact version 2 replaces the former reading workspace. Older packages are
 unsupported and must be explicitly removed and regenerated, not migrated silently.
 The visual-first authoring policy keeps the version-2 layout; existing v2 imports
 remain valid. See the [publication limits](docs/bdr/0009-visual-first-authoring.md).
+New generations also require [exact first-parent diffs](docs/bdr/0010-comparisons.md)
+for every owned change, not sequential before/after code blocks.
 
-The companion [web reader](https://github.com/bajor/raccoon-ios) imports local
+The companion [web reader](https://github.com/bajor/raccoon-reader) imports local
 artifacts on an iPad. No private source is uploaded to that reader's host.
 
 ## Development
