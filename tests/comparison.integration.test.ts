@@ -11,7 +11,6 @@ import { packageFixture } from './package-fixture.js';
 test('paired comparisons retain complete authoritative Git files', async (context) => {
   const { git, source, draft } = await packageFixture();
   context.after(() => rm(git.root, { recursive: true, force: true }));
-  draft.chapters[0]!.sections[0]!.blocks.push({ kind: 'diff', before: 'older', after: 'current' });
   const result = await buildArtifact(git, source, draft, Buffer.from('private'));
   const texts = ['older', 'current'].map((id) => result.assets.get(result.manifest.files.find((file) => file.reference === id)!.file)!.toString());
   assert.deepEqual(texts, ['one\ntwo\n', 'one\nchanged\nthree\n']);
@@ -40,14 +39,15 @@ test('an existing empty file remains distinct from an absent diff side', async (
   draft.references[0] = { ...draft.references[0]!, commit: head, startLine: 0, endLine: 0 };
   const section = draft.chapters[0]!.sections[0]!;
   section.commit = head;
-  section.blocks = section.blocks.filter((block) => block.kind !== 'code' || block.reference !== 'current');
-  section.blocks.push({ kind: 'diff', before: 'older', after: 'current' });
+  section.blocks = section.blocks.filter((block) => block.kind !== 'diff' && (block.kind !== 'code' || block.reference !== 'current'));
+  draft.references.push({ ...draft.references[0]!, id: 'prior', commit: source.headSha, startLine: 1, endLine: 3 });
+  section.blocks.push({ kind: 'diff', before: 'prior', after: 'current' }, { kind: 'diff', before: null, after: 'context' });
   draft.references[2] = { ...draft.references[2]!, commit: head, path: 'src/context.py' };
   draft.chapters[0]!.diagrams[0]!.commit = head;
   const snapshot = await freeze(git, { ...source, headSha: head });
   draft.assignments = snapshot.changes.map((change) => ({ change: change.id, chapter: 'handler' }));
   draft.chapters[0]!.sections.push({ commit: source.headSha, title: 'Earlier change', blocks: [
-    { kind: 'code', reference: 'older' }, { kind: 'prose', text: 'The previous change.', evidence: 'fact', refs: ['older'] },
+    { kind: 'diff', before: 'older', after: 'prior' }, { kind: 'prose', text: 'The previous change.', evidence: 'fact', refs: ['prior'] },
   ] });
   const result = await buildArtifact(git, { ...source, headSha: head }, draft, Buffer.from('private'));
   const file = result.manifest.files.find((file) => file.reference === 'current')!;

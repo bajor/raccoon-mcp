@@ -38,10 +38,11 @@ export async function advance(fixture: Awaited<ReturnType<typeof publicationFixt
   draft.references.push({ ...draft.references[2]!, id: 'final-context', commit: fixture.source.headSha });
   const chapter = draft.chapters[0]!;
   const historical = structuredClone(chapter.sections[0]!);
-  historical.blocks = [...historical.blocks.filter((block) => block.kind === 'code'),
+   historical.blocks = [...historical.blocks.filter((block) => block.kind === 'code' || block.kind === 'diff'),
     ...historical.blocks.filter((block) => block.kind === 'prose')];
   chapter.sections.push(historical);
-  chapter.sections[0]!.commit = fixture.source.headSha;
+   chapter.sections[0]!.commit = fixture.source.headSha;
+   chapter.sections[0]!.blocks = chapter.sections[0]!.blocks.filter((block) => block.kind !== 'diff');
   chapter.sections[0]!.blocks.find((block) => block.kind === 'prose')!.refs = ['final'];
   for (const block of chapter.sections[0]!.blocks) {
     if (block.kind === 'code') block.reference = block.reference === 'current' ? 'final' : 'final-context';

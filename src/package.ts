@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { artifactSchema, codeReferences, CONTRACT_VERSION, type Artifact, type Commit, type Draft, type Source } from './contract.js';
-import { authoringDraftSchema } from './authoring.js';
+import { authoringDraftSchema, requireComparisons } from './authoring.js';
 import { checkComparisons } from './comparison.js';
 import { renderDiagram } from './diagram.js';
 import { Git } from './git.js';
@@ -60,6 +60,7 @@ export async function buildArtifact(git: Git, source: Omit<Source, 'mergeBaseSha
   const commits = await timeline(git, snapshot, content);
   await checkRevisions(git, content);
   await checkComparisons(git, content);
+  requireComparisons(snapshot, content);
   const assets = new Map<string, Buffer>();
   let total = 0;
   function put(path: string, bytes: Buffer): void {
