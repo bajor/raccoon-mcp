@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Replace prose-heavy generation instructions with concrete diagrams, contextual code and short captions, including a verified-reference authoring example.
 - Enforce diagram-first chapters, contextual code excerpts and concise captions for new generations while preserving version-2 reader imports.
 - Return focused Git excerpts with optional numbered surrounding code and reusable reference ranges.
 - Run CI once per pull request update, while retaining checks on pushes to main.
