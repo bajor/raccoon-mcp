@@ -6,7 +6,7 @@ compatibility: A configured Raccoon MCP server on the VPS, complete local Git hi
 
 # Raccoon generation
 
-Explain with diagrams and real code first, short English captions second. Show
+Explain with diagrams, side-by-side diffs and real code first, short English captions second. Show
 the finished mechanism, its surrounding code and its evolution in reading order.
 Generate the whole artifact without asking for chapter approval. MCP supplies
 Git source, diagrams, validation and publication. This is not code review.
@@ -97,7 +97,25 @@ older formats need explicit removal and regeneration, never a guessed migration.
    each with code or a diagram and include real code from that revision. Use one
    short caption to explain the changed behavior and consequence, not a commit log.
 5. Own every inventory change exactly once with `{change, chapter}` and a section
-   at that change's commit. Tests, docs and small fixes still need coverage.
+   at that change's commit. Place an explicit diff there for every changed path,
+   including tests, docs and small fixes. Compare that exact first parent to the
+   change commit, not an earlier ancestor or only the net PR result. Generated-only
+   parents still supply authoritative code. Sequential old/new code blocks do not
+   express a comparison. Keep `code` blocks for unchanged surrounding context.
+
+### Pair real Git revisions
+
+Use `{ "kind": "diff", "before": "baseline-id", "after": "result-id" }`.
+Both IDs name verified references to the same path. The result commit matches
+its section; the baseline is an earlier ancestor. For inventory coverage use the
+change's exact first parent. MCP packages complete Git files; the reader library
+owns diff alignment, context expansion, highlighting and line numbers. Focus
+ranges do not truncate the comparison, and no patches or copied source are submitted.
+
+For an added file set `before: null`; for a deletion set `after: null` and cite
+the first-parent file. A real empty file has a reference with `startLine: 0` and
+`endLine: 0`, not `null`. It can appear in a diff, not a standalone `code` block.
+Represent renames as deletion/addition, matching the no-renames inventory.
 
 Use short excerpts, not isolated changed lines or entire-file dumps. For example,
 call `read_file` with `startLine: 40`, `count: 12`, `contextLines: 8`; inspect both
@@ -112,7 +130,7 @@ A concrete reading sequence, assuming these IDs were verified against Git:
   {"kind":"diagram","diagram":"request-flow"},
   {"kind":"prose","text":"The caller supplies the frame; the runner returns the final context.","evidence":"fact","refs":["caller","runner"]},
   {"kind":"code","reference":"caller"},
-  {"kind":"code","reference":"runner"}
+  {"kind":"diff","before":"runner-parent","after":"runner"}
 ]
 ```
 
@@ -136,7 +154,7 @@ Publication limits, not targets to fill:
 Prose blocks cannot outnumber distinct visual placements in a section. Graph nodes
 have short concrete labels and source refs; edges use actual data or conditions.
 Submit graph data only. MCP renders both printable layouts. References use full
-commit hashes, paths and inclusive 1-based ranges; use separate IDs per revision.
+commit hashes, paths and inclusive 1-based ranges (0-0 only for empty files); use separate IDs per revision.
 Sections and diagrams cannot cite future code; graph nodes cannot cite code newer
 than their graph. Structural checks do not prove semantic relevance: inspect it.
 
@@ -145,6 +163,8 @@ than their graph. Structural checks do not prove semantic relevance: inspect it.
 Acceptance criteria:
 
 - All inventory change IDs have exactly one owner and a section in that chapter.
+- Each owned changed path has an explicit first-parent diff at its commit. Added,
+  deleted and empty files retain their distinct meanings; old/new blocks are not pairs.
 - Diagrams and code carry the explanation; short captions supply only needed context.
 - Current sections show the mechanism and actual surrounding code, not just a diff.
 - History uses revision-specific code and concise consequences, with no missing fixes.

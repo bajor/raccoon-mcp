@@ -1,5 +1,6 @@
 import type { z } from 'zod';
 import { codeReferences, draftSchema, type Draft } from './contract.js';
+import type { Snapshot } from './snapshot.js';
 
 export const AUTHORING_LIMITS = {
   introduction: 60, historyNote: 80, summary: 30, caption: 60, section: 120,
@@ -59,3 +60,23 @@ export const authoringDraftSchema = draftSchema.superRefine((draft, context) => 
     }
   }
 });
+
+export function requireComparisons(snapshot: Snapshot, draft: Draft): void {
+  const refs = new Map(draft.references.map((ref) => [ref.id, ref]));
+  const owners = new Map(draft.assignments.map((assignment) => [assignment.change, assignment.chapter]));
+  const chapters = new Map(draft.chapters.map((chapter) => [chapter.id, chapter]));
+  const parents = new Map(snapshot.commits.map((commit) => [commit.sha, commit.parents[0]]));
+  for (const change of snapshot.changes) {
+    const owner = owners.get(change.id);
+    if (!owner) continue; // Portable contract validation reports missing ownership.
+    const covered = chapters.get(owner)?.sections.some((section) => section.commit === change.commit &&
+      section.blocks.some((block) => {
+        if (block.kind !== 'diff') return false;
+        const before = block.before === null ? undefined : refs.get(block.before);
+        const after = block.after === null ? undefined : refs.get(block.after);
+        return (change.status === 'added' ? block.before === null : before?.path === change.path && before.commit === parents.get(change.commit)) &&
+          (change.status === 'deleted' ? block.after === null : after?.path === change.path && after.commit === change.commit);
+      }));
+    if (!covered) throw new Error(`Change ${change.path} at ${change.commit} needs a first-parent diff in chapter ${owner}`);
+  }
+}

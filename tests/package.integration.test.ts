@@ -30,6 +30,9 @@ test('selected history precedes PR commits without changing article reading orde
 for (const [name, alter, message] of [
   ['out-of-range reference', (draft: Awaited<ReturnType<typeof packageFixture>>['draft']) => { draft.references[0]!.endLine = 50; }, /exceeds the real file/],
   ['text-heavy draft', (draft: Awaited<ReturnType<typeof packageFixture>>['draft']) => { draft.introduction = Array(61).fill('word').join(' '); }, /at most 60 words/],
+  ['sequential code without a diff', (draft: Awaited<ReturnType<typeof packageFixture>>['draft']) => {
+    draft.chapters[0]!.sections[0]!.blocks = draft.chapters[0]!.sections[0]!.blocks.filter((block) => block.kind !== 'diff');
+  }, /needs a first-parent diff/],
   ['unowned source change', (draft: Awaited<ReturnType<typeof packageFixture>>['draft']) => { draft.assignments[0]!.change = 'invented'; }, /Unknown change|Unassigned changes/],
   ['future prose evidence', (draft: Awaited<ReturnType<typeof packageFixture>>['draft']) => {
     draft.chapters[0]!.sections[1]!.blocks.find((block) => block.kind === 'prose')!.refs = ['current', 'older'];

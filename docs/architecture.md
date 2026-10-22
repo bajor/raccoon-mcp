@@ -17,6 +17,8 @@ flowchart LR
     Contract --> Prose[Literal prose with evidence]
     Contract --> Code[Git reference placements]
     Contract --> Diff[Explicit comparison endpoints]
+    Diff --> Policy[First-parent change coverage]
+    Policy --> Package
     Diff --> Git
     Contract --> Graph[Diagram placements]
     Code --> Git[Full pinned Git files]
@@ -70,6 +72,8 @@ graph contract into compact, escaped portrait and landscape SVG using Dagre.
 Viewport dimensions accompany checksums for automatic fitting. Neither writes
 into the analyzed repository.
 `src/comparison.ts` validates ancestor and file-presence relationships for diffs.
+`src/authoring.ts` also matches every owned change to an exact first-parent diff
+in its primary chapter. This publication policy does not tighten reader imports.
 The reader compares complete source assets using a library; the builder never
 accepts agent-supplied patches or rendered HTML.
 `src/authoring.ts` applies the [visual-first publication policy](/bdr/0009-visual-first-authoring.md)

@@ -24,7 +24,8 @@ export async function packageFixture(): Promise<{ git: Git; source: Omit<Source,
        sections: [{ commit: head, title: 'How the handler works', blocks: [
          { kind: 'diagram', diagram: 'flow' },
          { kind: 'prose', text: 'The current handler extends the previous behavior.', evidence: 'fact', refs: ['current'] },
-         { kind: 'code', reference: 'current' }, { kind: 'code', reference: 'context' },
+          { kind: 'code', reference: 'current' }, { kind: 'code', reference: 'context' },
+          { kind: 'diff', before: 'older', after: 'current' },
        ] }, { commit: base, title: 'The original mechanism', blocks: [
          { kind: 'code', reference: 'older' }, { kind: 'prose', text: 'The original mechanism.', evidence: 'fact', refs: ['older'] },
       ] }],

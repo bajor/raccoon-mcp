@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Require a first-parent diff for every owned change in new generations and teach explicit pairing in the host skill.
 - Add explicit Git comparison blocks with verified ancestors, absent sides and empty-file evidence.
 - Replace prose-heavy generation instructions with concrete diagrams, contextual code and short captions, including a verified-reference authoring example.
 - Enforce diagram-first chapters, contextual code excerpts and concise captions for new generations while preserving version-2 reader imports.
