@@ -23,8 +23,8 @@ export const changeSchema = z.strictObject({
 });
 export const referenceSchema = z.strictObject({
   id, commit: sha, path: relativePath,
-  startLine: z.number().int().positive(), endLine: z.number().int().positive(),
-}).refine((ref) => ref.endLine >= ref.startLine, 'Reversed line range');
+  startLine: z.number().int().nonnegative(), endLine: z.number().int().nonnegative(),
+}).refine((ref) => ref.startLine === 0 ? ref.endLine === 0 : ref.endLine >= ref.startLine, 'Reversed line range');
 
 export const proseSchema = z.strictObject({
   kind: z.literal('prose'), text,
@@ -33,8 +33,12 @@ export const proseSchema = z.strictObject({
 });
 export const blockSchema = z.discriminatedUnion('kind', [proseSchema,
   z.strictObject({ kind: z.literal('code'), reference: id }),
+  z.strictObject({ kind: z.literal('diff'), before: id.nullable(), after: id.nullable() }),
   z.strictObject({ kind: z.literal('diagram'), diagram: id }),
 ]);
+export const codeReferences = (block: z.infer<typeof blockSchema>): string[] =>
+  block.kind === 'code' ? [block.reference] : block.kind === 'diff' ?
+    [block.before, block.after].filter((ref): ref is string => ref !== null) : [];
 const diagramSchema = z.strictObject({
   id, title: text, commit: sha,
   nodes: z.array(z.strictObject({ id, label: text.max(160), refs: z.array(id).min(1) })).min(1).max(24),
@@ -125,13 +129,22 @@ function checkDraft(draft: z.infer<typeof draftShape>, context: z.RefinementCtx)
     unique(chapter.diagrams.map((diagram) => diagram.id), context, path, `diagram in ${chapter.id}`);
     const placed = new Set<string>();
     const blocks = chapter.sections.flatMap((section) => section.blocks);
-    if (!blocks.some((block) => block.kind === 'code')) issue(context, path, 'Chapter needs inline code');
+    if (!blocks.some((block) => codeReferences(block).length)) issue(context, path, 'Chapter needs inline code');
     for (const [i, section] of chapter.sections.entries()) {
       if (!section.blocks.some((block) => block.kind === 'prose')) issue(context, [...path, 'sections', i], 'Section needs prose');
       for (const [j, block] of section.blocks.entries()) {
         const blockPath = [...path, 'sections', i, 'blocks', j];
         if (block.kind === 'prose') checkRefs(block.refs, blockPath);
-        if (block.kind === 'code') checkRefs([block.reference], blockPath);
+        checkRefs(codeReferences(block), blockPath);
+        if (block.kind === 'code' && draft.references.find((ref) => ref.id === block.reference)?.startLine === 0) {
+          issue(context, blockPath, 'Empty files can only appear in diffs');
+        }
+        if (block.kind === 'diff') {
+          if (block.before === null && block.after === null) issue(context, blockPath, 'Diff needs an existing side');
+          if (block.before !== null && block.before === block.after) issue(context, blockPath, 'Diff needs distinct revisions');
+          const after = draft.references.find((ref) => ref.id === block.after);
+          if (after && after.commit !== section.commit) issue(context, blockPath, 'Diff result must match its section revision');
+        }
         if (block.kind === 'diagram') {
           placed.add(block.diagram);
           if (!chapter.diagrams.some((diagram) => diagram.id === block.diagram)) issue(context, blockPath, `Unknown inline diagram ${block.diagram}`);
@@ -192,6 +205,7 @@ function checkAssets(artifact: Artifact, context: z.RefinementCtx): void {
   for (const [index, ref] of artifact.content.references.entries()) {
     const file = files.get(ref.id);
     if (!file || ref.endLine > file.lines) issue(context, ['content', 'references', index], `Missing or out-of-range file for ${ref.id}`);
+    if (file && (ref.startLine === 0) !== (file.lines === 0)) issue(context, ['content', 'references', index], 'Only empty files use the 0-0 range');
     const revision = `${ref.commit}:${ref.path}`;
     if (file && revisions.has(revision) && revisions.get(revision) !== file.blob) {
       issue(context, ['files'], 'Inconsistent file for commit:path');
@@ -250,7 +264,7 @@ function checkTimeline(artifact: Artifact, context: z.RefinementCtx): void {
     const path: IssuePath = ['content', 'chapters', index];
     const first = chapter.sections[0]!;
     if (first.commit !== artifact.source.headSha || !first.blocks.some((block) =>
-      block.kind === 'code' && refs.get(block.reference)?.commit === artifact.source.headSha)) {
+      codeReferences(block).some((ref) => refs.get(ref)?.commit === artifact.source.headSha))) {
       issue(context, path, 'Chapter must start with inline code at the pinned head');
     }
     if (!first.blocks.some((block) => block.kind === 'diagram' && chapter.diagrams.some((diagram) =>

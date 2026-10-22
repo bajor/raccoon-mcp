@@ -24,6 +24,13 @@ const brokenDrafts: Array<[string, (input: ReturnType<typeof draft>) => void]> =
   ['dangling diagram endpoint', (input) => { input.chapters[0]!.diagrams[0]!.edges.push({ from: 'handler', to: 'missing', label: '' }); }],
   ['reversed source range', (input) => { input.references[0]!.startLine = 3; }],
   ['case-ambiguous filename ID', (input) => { input.chapters[0]!.id = 'Flow'; input.assignments[0]!.chapter = 'Flow'; }],
+  ['diff without either side', (input) => { input.chapters[0]!.sections[0]!.blocks.push({ kind: 'diff', before: null, after: null }); }],
+  ['dangling diff side', (input) => { input.chapters[0]!.sections[0]!.blocks.push({ kind: 'diff', before: null, after: 'missing' }); }],
+  ['diff repeating one reference', (input) => { input.chapters[0]!.sections[0]!.blocks.push({ kind: 'diff', before: 'r1', after: 'r1' }); }],
+  ['diff result at another revision', (input) => {
+    input.references.push({ ...input.references[0]!, id: 'older', commit: '0'.repeat(40) });
+    input.chapters[0]!.sections[0]!.blocks.push({ kind: 'diff', before: 'r1', after: 'older' });
+  }],
 ];
 for (const [name, breakInput] of brokenDrafts) {
   test(`rejects ${name}`, () => {

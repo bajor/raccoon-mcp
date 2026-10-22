@@ -8,13 +8,16 @@ description: Contract ownership and the boundary between agent prose and Git sou
 `src/contract.ts` owns artifact version 2. It has no Node dependencies and can be
 vendored, with provenance, into the reader. Schema changes require an explicit
 version decision; readers reject unsupported versions rather than guessing.
-There is no legacy adapter. See the [article decision](/adr/0002-article-contract.md).
+There is no legacy adapter. The [comparison extension](/adr/0003-comparison-blocks.md)
+adds explicit diff endpoints without changing existing version-2 data.
 
 ```mermaid
 flowchart LR
     Agent[Host agent: English article] --> Contract[Ordered chapter sections]
     Contract --> Prose[Literal prose with evidence]
     Contract --> Code[Git reference placements]
+    Contract --> Diff[Explicit comparison endpoints]
+    Diff --> Git
     Contract --> Graph[Diagram placements]
     Code --> Git[Full pinned Git files]
     Graph --> Dagre[Two static Dagre layouts]
@@ -66,6 +69,9 @@ file assets, source metadata and profile hashing. `src/diagram.ts` turns the bou
 graph contract into compact, escaped portrait and landscape SVG using Dagre.
 Viewport dimensions accompany checksums for automatic fitting. Neither writes
 into the analyzed repository.
+`src/comparison.ts` validates ancestor and file-presence relationships for diffs.
+The reader compares complete source assets using a library; the builder never
+accepts agent-supplied patches or rendered HTML.
 `src/authoring.ts` applies the [visual-first publication policy](/bdr/0009-visual-first-authoring.md)
 before packaging and at the MCP input boundary. This policy is separate from the
 portable format so existing reader imports keep their version-2 meaning.

@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { artifactSchema, CONTRACT_VERSION, type Artifact, type Commit, type Draft, type Source } from './contract.js';
+import { artifactSchema, codeReferences, CONTRACT_VERSION, type Artifact, type Commit, type Draft, type Source } from './contract.js';
 import { authoringDraftSchema } from './authoring.js';
+import { checkComparisons } from './comparison.js';
 import { renderDiagram } from './diagram.js';
 import { Git } from './git.js';
 import { freeze, type Snapshot } from './snapshot.js';
@@ -42,7 +43,7 @@ async function checkRevisions(git: Git, draft: Draft): Promise<void> {
   for (const chapter of draft.chapters) {
     for (const section of chapter.sections) for (const block of section.blocks) {
       if (block.kind === 'prose') await prior(block.refs, section.commit);
-      if (block.kind === 'code') await prior([block.reference], section.commit);
+      await prior(codeReferences(block), section.commit);
       if (block.kind === 'diagram') {
         const diagram = chapter.diagrams.find((diagram) => diagram.id === block.diagram)!;
         if (!await git.isAncestor(diagram.commit, section.commit)) throw new Error('Inline diagram did not exist at section revision');
@@ -58,6 +59,7 @@ export async function buildArtifact(git: Git, source: Omit<Source, 'mergeBaseSha
   const content = authoringDraftSchema.parse(input);
   const commits = await timeline(git, snapshot, content);
   await checkRevisions(git, content);
+  await checkComparisons(git, content);
   const assets = new Map<string, Buffer>();
   let total = 0;
   function put(path: string, bytes: Buffer): void {
@@ -70,6 +72,7 @@ export async function buildArtifact(git: Git, source: Omit<Source, 'mergeBaseSha
   for (const reference of content.references) {
     const file = await git.file(reference.commit, reference.path);
     if (reference.endLine > file.lines) throw new Error(`Reference ${reference.id} exceeds the real file's ${file.lines} lines`);
+    if ((reference.startLine === 0) !== (file.lines === 0)) throw new Error('Only empty Git files use the 0-0 range');
     const sha256 = checksum(file.data);
     const path = `files/${sha256}.txt`;
     put(path, file.data);
