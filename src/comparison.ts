@@ -17,11 +17,13 @@ export async function checkComparisons(git: Git, draft: Draft): Promise<void> {
       }
       if (!before) {
         const parent = (await git.commit(section.commit)).parents[0];
-        if (parent && (await git.entries(parent, after!.path)).length) throw new Error('Added diff file exists in the first parent');
+        if (parent && (await git.entries(parent, after!.path)).some((entry) => entry.path === after!.path)) {
+          throw new Error('Added diff file exists in the first parent');
+        }
       }
       if (!after) {
         const parent = (await git.commit(section.commit)).parents[0];
-        if (before!.commit !== parent || (await git.entries(section.commit, before!.path)).length) {
+        if (before!.commit !== parent || (await git.entries(section.commit, before!.path)).some((entry) => entry.path === before!.path)) {
           throw new Error('Deleted diff needs the first-parent file and its absence at the section revision');
         }
       }
