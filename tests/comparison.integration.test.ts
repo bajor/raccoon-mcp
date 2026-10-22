@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { rm, writeFile } from 'node:fs/promises';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { checkComparisons } from '../src/comparison.js';
 import { buildArtifact } from '../src/package.js';
@@ -53,3 +53,23 @@ test('an existing empty file remains distinct from an absent diff side', async (
   const file = result.manifest.files.find((file) => file.reference === 'current')!;
   assert.equal(result.assets.get(file.file)!.length, 0);
 });
+
+for (const direction of ['file-to-directory', 'directory-to-file'] as const) {
+  test(`comparison presence uses the exact path for ${direction}`, async (context) => {
+    const { git, draft } = await packageFixture();
+    context.after(() => rm(git.root, { recursive: true, force: true }));
+    const path = join(git.root, 'src/main.ts');
+    await rm(path); await mkdir(path); await writeFile(join(path, 'child.py'), 'run()\n');
+    let head = commit(git.root, 'Replace file with directory');
+    let block = { kind: 'diff' as const, before: 'current' as string | null, after: null as string | null };
+    if (direction === 'directory-to-file') {
+      await rm(path, { recursive: true }); await writeFile(path, 'run()\n');
+      head = commit(git.root, 'Replace directory with file');
+      draft.references[0]!.commit = head;
+      block = { kind: 'diff', before: null, after: 'current' };
+    }
+    draft.chapters[0]!.sections[0]!.commit = head;
+    draft.chapters[0]!.sections[0]!.blocks.push(block);
+    await checkComparisons(git, draft);
+  });
+}
